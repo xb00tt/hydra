@@ -7,7 +7,7 @@ import type { DownloadSource } from "@types";
 import {
   fetchSimilarGames,
   type SimilarGame,
-  type SimilarGamesGet,
+  type SimilarGamesApi,
   type SimilarGamesQuery,
 } from "./similar-games";
 
@@ -34,8 +34,12 @@ export const useSimilarGames = (query: SimilarGamesQuery) => {
 
     setIsLoading(true);
 
-    const get: SimilarGamesGet = (path, options) =>
-      globalThis.window.electron.hydraApi.get<unknown>(path, options);
+    const api: SimilarGamesApi = {
+      get: (path, options) =>
+        globalThis.window.electron.hydraApi.get<unknown>(path, options),
+      post: (path, options) =>
+        globalThis.window.electron.hydraApi.post<unknown>(path, options),
+    };
 
     const loadSimilarGames = async () => {
       const sources = (await levelDBService.values(
@@ -49,7 +53,7 @@ export const useSimilarGames = (query: SimilarGamesQuery) => {
       );
       const results = await fetchSimilarGames(
         stableQuery,
-        get,
+        api,
         downloadSourceIds
       );
 
