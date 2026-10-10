@@ -57,6 +57,7 @@ const SIDEBAR_SORT_OPTIONS = new Set<SortOption>([
   "title_asc",
   "recently_played",
   "recently_downloaded",
+  "recently_added",
   "most_played",
   "achievements",
 ]);

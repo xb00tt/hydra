@@ -1,5 +1,6 @@
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import {
+  CalendarIcon,
   CheckIcon,
   ClockIcon,
   DeviceDesktopIcon,
@@ -198,6 +199,11 @@ export function SidebarFilterMenu({
       value: "recently_downloaded",
       label: t("sort_recently_downloaded", { ns: "library" }),
       icon: <DownloadIcon size={14} />,
+    },
+    {
+      value: "recently_added",
+      label: t("sort_recently_added", { ns: "library" }),
+      icon: <CalendarIcon size={14} />,
     },
     {
       value: "most_played",

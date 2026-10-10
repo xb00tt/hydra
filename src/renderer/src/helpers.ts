@@ -452,6 +452,10 @@ const getPlayTimeDifference = (a: LibraryGame, b: LibraryGame): number => {
 const getDownloadTimeDifference = (a: LibraryGame, b: LibraryGame): number =>
   (b.download?.timestamp ?? 0) - (a.download?.timestamp ?? 0);
 
+const getAddedTimeDifference = (a: LibraryGame, b: LibraryGame): number =>
+  new Date(b.addedToLibraryAt ?? 0).getTime() -
+  new Date(a.addedToLibraryAt ?? 0).getTime();
+
 const getMostPlayedDifference = (a: LibraryGame, b: LibraryGame): number =>
   getDisplayedPlayTimeInMilliseconds(b) - getDisplayedPlayTimeInMilliseconds(a);
 
@@ -538,6 +542,12 @@ export const sortLibraryGames = (
 
       case "recently_downloaded": {
         const difference = getDownloadTimeDifference(a, b);
+        if (difference !== 0) return difference;
+        break;
+      }
+
+      case "recently_added": {
+        const difference = getAddedTimeDifference(a, b);
         if (difference !== 0) return difference;
         break;
       }

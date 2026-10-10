@@ -6,6 +6,7 @@ export type SortOption =
   | "title_asc"
   | "recently_played"
   | "recently_downloaded"
+  | "recently_added"
   | "most_played"
   | "achievements"
   | "installed_first"
@@ -36,6 +37,7 @@ export function FilterOptions({
             value: "recently_downloaded",
             label: t("sort_recently_downloaded"),
           },
+          { value: "recently_added", label: t("sort_recently_added") },
           { value: "most_played", label: t("sort_most_played") },
           { value: "achievements", label: t("sort_achievements") },
           { value: "installed_first", label: t("sort_installed_first") },
