@@ -346,7 +346,6 @@ export function SidebarFilterMenu({
                       icon: <SourceIcon source={source} />,
                     }))}
                     selected={selectedSources}
-                    singleSelect
                     onChange={(sources) =>
                       onSourcesChange(
                         LIBRARY_SOURCES.filter((source) =>
