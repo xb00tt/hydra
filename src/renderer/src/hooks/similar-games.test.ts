@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 
 import {
+  buildSimilarGameViews,
   clearSimilarGamesCache,
   fetchSimilarGames,
   getCachedSimilarGames,
@@ -586,5 +587,62 @@ describe("rankSimilarGames", () => {
       results.map(({ objectId }) => objectId),
       ["a"]
     );
+  });
+});
+
+describe("buildSimilarGameViews", () => {
+  const names = new Map([
+    [1698, "Point & Click"],
+    [5613, "Detective"],
+    [3964, "Pixel Graphics"],
+  ]);
+
+  it("resolves up to two shared tag names, skipping unknown ids", () => {
+    const [view] = buildSimilarGameViews(
+      [game("a", { sharedTagIds: [999, 1698, 5613, 3964] })],
+      new Set(),
+      names
+    );
+
+    assert.deepEqual(view.sharedTags, ["Point & Click", "Detective"]);
+    assert.equal(view.inLibrary, false);
+  });
+
+  it("marks owned games and moves them after unowned ones, keeping order otherwise", () => {
+    const views = buildSimilarGameViews(
+      [game("owned-1"), game("free-1"), game("owned-2"), game("free-2")],
+      new Set(["steam:owned-1", "steam:owned-2"]),
+      names
+    );
+
+    assert.deepEqual(
+      views.map(({ objectId, inLibrary }) => [objectId, inLibrary]),
+      [
+        ["free-1", false],
+        ["free-2", false],
+        ["owned-1", true],
+        ["owned-2", true],
+      ]
+    );
+  });
+
+  it("does not treat a same-id game from another shop as owned", () => {
+    const [view] = buildSimilarGameViews(
+      [game("a")],
+      new Set(["custom:a", "launchbox:a"]),
+      names
+    );
+
+    assert.equal(view.inLibrary, false);
+  });
+
+  it("leaves captions empty when no names are known", () => {
+    const [view] = buildSimilarGameViews(
+      [game("a", { sharedTagIds: [1698] })],
+      new Set(),
+      new Map()
+    );
+
+    assert.deepEqual(view.sharedTags, []);
   });
 });

@@ -401,3 +401,34 @@ export const fetchSimilarGames = async (
 
   return results;
 };
+
+export const SHARED_TAGS_SHOWN = 2;
+
+export interface SimilarGameView extends SimilarGame {
+  sharedTags: string[];
+  inLibrary: boolean;
+}
+
+// Ownership and names are applied at render time so cached lists stay valid
+// when the library or language changes.
+export const buildSimilarGameViews = (
+  games: SimilarGame[],
+  ownedKeys: ReadonlySet<string>,
+  tagNameById: ReadonlyMap<number, string>
+): SimilarGameView[] => {
+  const views = games.map((game) => ({
+    ...game,
+    inLibrary: ownedKeys.has(similarGameKey(game)),
+    sharedTags: game.sharedTagIds
+      .flatMap((id) => {
+        const name = tagNameById.get(id);
+        return name ? [name] : [];
+      })
+      .slice(0, SHARED_TAGS_SHOWN),
+  }));
+
+  return [
+    ...views.filter((view) => !view.inLibrary),
+    ...views.filter((view) => view.inLibrary),
+  ];
+};
