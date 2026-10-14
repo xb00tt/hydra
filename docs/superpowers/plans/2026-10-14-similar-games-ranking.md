@@ -71,6 +71,12 @@ Also update the two existing limit tests in the `normalizeSimilarGamesResponse` 
 - Rename `"drops malformed download sources and limits results to nine"` to `"drops malformed download sources and limits results to twelve"`, change `Array.from({ length: 12 }` to `Array.from({ length: 15 }`, and `assert.equal(results.length, 9)` to `assert.equal(results.length, 12)`.
 - In `"rejects blank identities, trims valid identities, and preserves the limit"`, change `Array.from({ length: 8 }` to `Array.from({ length: 11 }` and `assert.equal(results.length, 9)` to `assert.equal(results.length, 12)`.
 
+The old `fetchSimilarGames` tests hard-code the old limit; Task 3 rewrites them, but they must pass now. Make these three edits in that block:
+
+- In `"builds steam results from tag searches, narrowest tier first"`, change `take: 10,` to `take: 13,` (the old code requests `SIMILAR_GAMES_LIMIT + 1`).
+- In `"fills remaining slots from the similar endpoint"`, change `Array.from({ length: 8 }, (_, index) => \`similar-${index}\`)` to `Array.from({ length: 9 }, (_, index) => \`similar-${index}\`)` and `params: { take: 9, downloadSourceIds: ["source-a"] }` to `params: { take: 12, downloadSourceIds: ["source-a"] }`.
+- In `"uses the similar endpoint alone for launchbox games"`, change `params: { take: 9, downloadSourceIds: ["source-b", "source-a"] }` to `params: { take: 12, downloadSourceIds: ["source-b", "source-a"] }`.
+
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `node --import ./scripts/register-ts-node.mjs --test src/renderer/src/hooks/similar-games.test.ts`
@@ -138,7 +144,7 @@ export const SIMILAR_GAMES_TAG_TIERS = [6, 5, 4];
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `node --import ./scripts/register-ts-node.mjs --test src/renderer/src/hooks/similar-games.test.ts`
-Expected: all pass. The existing `fetchSimilarGames` tests still use the old 9-limit `/similar` `take` in their expectations; they pass because `fetchSimilarGames` still uses `SIMILAR_GAMES_LIMIT` for `take` and the test asserts `take: 9`. If they fail on `take: 12`, update those assertions to `12` now; Task 3 rewrites them anyway.
+Expected: all pass, including the three patched `fetchSimilarGames` assertions.
 
 - [ ] **Step 5: Commit**
 
@@ -583,7 +589,7 @@ describe("fetchSimilarGames", () => {
 
   it("drops non-numeric tag ids before tiering", async () => {
     const { api, calls } = createApi({
-      tags: { tags: ["x", "1698", "1719", "5923", "1738", null] },
+      tags: { tags: ["x", "1698", "1719", "5923", "1738", "1.5"] },
       search: () => [searchEdge("a")],
     });
 
@@ -842,7 +848,7 @@ export const fetchSimilarGames = async (
 };
 ```
 
-Keep `fetchGameTags` as it is: it already maps with `Number` and filters with `Number.isInteger`, which drops `"x"` and `null`.
+Keep `fetchGameTags` as it is: it already maps with `Number` and filters with `Number.isInteger`, which drops `"x"` and `"1.5"`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
