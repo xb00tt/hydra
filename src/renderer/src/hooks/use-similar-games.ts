@@ -129,10 +129,14 @@ export const useSimilarGames = (query: SimilarGamesQuery) => {
   );
 
   const hasCurrentResults = resultQueryKey === queryKey;
-  const currentGames = hasCurrentResults ? games : (cached ?? []);
   const views = useMemo(
-    () => buildSimilarGameViews(currentGames, ownedKeys, tagNameById),
-    [currentGames, ownedKeys, tagNameById]
+    () =>
+      buildSimilarGameViews(
+        hasCurrentResults ? games : (cached ?? []),
+        ownedKeys,
+        tagNameById
+      ),
+    [cached, games, hasCurrentResults, ownedKeys, tagNameById]
   );
 
   return {
