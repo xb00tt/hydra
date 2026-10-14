@@ -5,6 +5,7 @@ import {
   fetchSimilarGames,
   getSimilarGamesSectionState,
   normalizeSimilarGamesResponse,
+  orderTagsSpecificFirst,
   type SimilarGame,
   type SimilarGamesApi,
 } from "./similar-games.js";
@@ -61,18 +62,18 @@ describe("normalizeSimilarGamesResponse", () => {
         game(" \t "),
         game("blank-title", { title: " \t " }),
         game(" padded-id ", { title: " Padded title " }),
-        ...Array.from({ length: 8 }, (_, index) => game(`valid-${index}`)),
+        ...Array.from({ length: 11 }, (_, index) => game(`valid-${index}`)),
       ],
       query
     );
 
-    assert.equal(results.length, 9);
+    assert.equal(results.length, 12);
     assert.equal(results[0].objectId, "padded-id");
     assert.equal(results[0].title, "Padded title");
   });
 
-  it("drops malformed download sources and limits results to nine", () => {
-    const response = Array.from({ length: 12 }, (_, index) => ({
+  it("drops malformed download sources and limits results to twelve", () => {
+    const response = Array.from({ length: 15 }, (_, index) => ({
       ...game(String(index)),
       downloadSources: [
         `Source ${index}`,
@@ -84,7 +85,7 @@ describe("normalizeSimilarGamesResponse", () => {
 
     const results = normalizeSimilarGamesResponse(response, query);
 
-    assert.equal(results.length, 9);
+    assert.equal(results.length, 12);
     assert.deepEqual(results[0].downloadSources, ["Source 0"]);
   });
 
@@ -202,6 +203,9 @@ describe("fetchSimilarGames", () => {
         "wide-3",
         "wide-4",
         "wide-5",
+        "wide-6",
+        "wide-7",
+        "wide-8",
       ]
     );
     assert.equal(
@@ -220,7 +224,7 @@ describe("fetchSimilarGames", () => {
     assert.deepEqual(calls[0].options, { needsAuth: false });
     assert.deepEqual(calls[1].options, {
       data: {
-        take: 10,
+        take: 13,
         skip: 0,
         title: "",
         sortBy: "popularity",
@@ -261,7 +265,7 @@ describe("fetchSimilarGames", () => {
 
     assert.deepEqual(
       calls
-        .slice(1)
+        .filter((call) => call.method === "post")
         .map(
           (call) => (call.options as { data: { tags: number[] } }).data.tags
         ),
@@ -286,13 +290,13 @@ describe("fetchSimilarGames", () => {
 
     assert.deepEqual(
       results.map(({ objectId }) => objectId),
-      ["a", ...Array.from({ length: 8 }, (_, index) => `similar-${index}`)]
+      ["a", ...Array.from({ length: 9 }, (_, index) => `similar-${index}`)]
     );
     assert.deepEqual(calls.at(-1), {
       method: "get",
       path: "/catalogue/steam/current/similar",
       options: {
-        params: { take: 9, downloadSourceIds: ["source-a"] },
+        params: { take: 12, downloadSourceIds: ["source-a"] },
         needsAuth: false,
       },
     });
@@ -365,7 +369,7 @@ describe("fetchSimilarGames", () => {
         method: "get",
         path: "/catalogue/launchbox/game%2Fid/similar",
         options: {
-          params: { take: 9, downloadSourceIds: ["source-b", "source-a"] },
+          params: { take: 12, downloadSourceIds: ["source-b", "source-a"] },
           needsAuth: false,
         },
       },
@@ -382,5 +386,24 @@ describe("fetchSimilarGames", () => {
 
     assert.deepEqual(results, []);
     assert.equal(calls.length, 0);
+  });
+});
+
+describe("orderTagsSpecificFirst", () => {
+  it("moves generic tags behind specific ones, keeping vote order in each group", () => {
+    // 122 RPG and 4182 Singleplayer are generic; 4747, 1695, 1684 are specific.
+    assert.deepEqual(orderTagsSpecificFirst([122, 4747, 1695, 4182, 1684]), [
+      4747, 1695, 1684, 122, 4182,
+    ]);
+  });
+
+  it("returns tags unchanged when none are generic", () => {
+    assert.deepEqual(orderTagsSpecificFirst([1698, 5613]), [1698, 5613]);
+  });
+
+  it("returns tags unchanged when all are generic", () => {
+    assert.deepEqual(orderTagsSpecificFirst([4182, 492, 19, 21]), [
+      4182, 492, 19, 21,
+    ]);
   });
 });

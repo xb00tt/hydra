@@ -1,7 +1,52 @@
 import type { GameShop } from "@types";
 
-export const SIMILAR_GAMES_LIMIT = 9;
-// Steam user tags are ordered by votes; AND-match the top N, narrowest first.
+export const SIMILAR_GAMES_LIMIT = 12;
+
+// Broad Steam user tags that describe mode, mood, or rating rather than what
+// a game is. Ids from /catalogue/steam/tags?language=en on 2026-10-14.
+export const GENERIC_STEAM_TAG_IDS: ReadonlySet<number> = new Set([
+  4182, // Singleplayer
+  3859, // Multiplayer
+  3843, // Online Co-Op
+  1685, // Co-op
+  492, // Indie
+  19, // Action
+  21, // Adventure
+  597, // Casual
+  599, // Simulation
+  9, // Strategy
+  122, // RPG
+  113, // Free to Play
+  493, // Early Access
+  1756, // Great Soundtrack
+  4166, // Atmospheric
+  3871, // 2D
+  4191, // 3D
+  7481, // Controller
+  4026, // Difficult
+  4726, // Cute
+  4305, // Colorful
+  4136, // Funny
+  1654, // Relaxing
+  5350, // Family Friendly
+  1693, // Classic
+  1669, // Moddable
+  4252, // Stylized
+  4175, // Realistic
+  4667, // Violent
+  4345, // Gore
+  5611, // Mature
+  6650, // Nudity
+  12095, // Sexual Content
+]);
+
+// Specific tags first, then generic ones; vote order kept inside each group.
+export const orderTagsSpecificFirst = (tags: number[]) => [
+  ...tags.filter((tag) => !GENERIC_STEAM_TAG_IDS.has(tag)),
+  ...tags.filter((tag) => GENERIC_STEAM_TAG_IDS.has(tag)),
+];
+
+// Replaced by SIMILAR_GAMES_TAG_QUERIES in Task 3.
 export const SIMILAR_GAMES_TAG_TIERS = [6, 5, 4];
 
 export type SimilarGamesSectionState = "hidden" | "loading" | "ready" | "empty";
