@@ -442,3 +442,11 @@ export const buildSimilarGameViews = (
     ...views.filter((view) => view.inLibrary),
   ];
 };
+
+// A populated cache for the current query is never staler than hook state,
+// so it wins even when a superseded fetch left the state empty.
+export const resolveSimilarGames = (
+  cached: SimilarGame[] | undefined,
+  hasCurrentResults: boolean,
+  games: SimilarGame[]
+) => cached ?? (hasCurrentResults ? games : []);

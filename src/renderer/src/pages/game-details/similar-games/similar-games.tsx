@@ -8,7 +8,7 @@ import Skeleton from "react-loading-skeleton";
 import type { GameShop } from "@types";
 import { VerticalCoverCard } from "@renderer/components";
 import { buildGameDetailsPath } from "@renderer/helpers";
-import { useSimilarGames } from "@renderer/hooks";
+import { useSimilarGameViews } from "@renderer/hooks";
 import { getSimilarGamesSectionState } from "@renderer/hooks/similar-games";
 
 import "./similar-games.scss";
@@ -43,7 +43,10 @@ function SimilarGamesSkeleton() {
 export function SimilarGames({ objectId, shop }: Readonly<SimilarGamesProps>) {
   const navigate = useNavigate();
   const { t } = useTranslation("game_details");
-  const { games, isLoading, isEligible } = useSimilarGames({ objectId, shop });
+  const { games, isLoading, isEligible } = useSimilarGameViews({
+    objectId,
+    shop,
+  });
   const sectionState = getSimilarGamesSectionState(
     isEligible,
     isLoading,

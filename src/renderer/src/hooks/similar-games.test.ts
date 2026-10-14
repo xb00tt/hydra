@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, it } from "node:test";
 
 import {
@@ -10,6 +11,7 @@ import {
   normalizeSimilarGamesResponse,
   orderTagsSpecificFirst,
   rankSimilarGames,
+  resolveSimilarGames,
   type SimilarGame,
   type SimilarGamesApi,
 } from "./similar-games.js";
@@ -649,5 +651,43 @@ describe("buildSimilarGameViews", () => {
     );
 
     assert.deepEqual(view.sharedTags, []);
+  });
+});
+
+describe("resolveSimilarGames", () => {
+  it("prefers a populated cache over stale empty state", () => {
+    const cached = [game("cached")];
+
+    assert.equal(resolveSimilarGames(cached, false, []), cached);
+    assert.equal(resolveSimilarGames(cached, true, []), cached);
+  });
+
+  it("falls back to current state, or nothing, without a cache", () => {
+    const current = [game("current")];
+
+    assert.equal(resolveSimilarGames(undefined, true, current), current);
+    assert.deepEqual(resolveSimilarGames(undefined, false, current), []);
+  });
+});
+
+describe("useSimilarGames module", () => {
+  it("stays redux-free because Big Picture mounts it without a Provider", () => {
+    const source = readFileSync(
+      new URL("./use-similar-games.ts", import.meta.url),
+      "utf8"
+    );
+
+    for (const forbidden of [
+      "./redux",
+      "react-redux",
+      "./use-library",
+      "./use-catalogue",
+      "@renderer/features",
+    ]) {
+      assert.ok(
+        !source.includes(forbidden),
+        `use-similar-games.ts must not import ${forbidden}`
+      );
+    }
   });
 });
