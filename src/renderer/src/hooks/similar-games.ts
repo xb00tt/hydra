@@ -63,7 +63,23 @@ export const SIMILAR_GAMES_TAG_QUERIES: readonly SimilarGamesTagQuery[] = [
   { size: 4, sortBy: "popularity" },
 ];
 
-export const clearSimilarGamesCache = () => {};
+const CACHE_LIMIT = 50;
+const similarGamesCache = new Map<string, SimilarGame[]>();
+
+export const getCachedSimilarGames = (query: SimilarGamesQuery) =>
+  similarGamesCache.get(similarGameKey(query));
+
+export const clearSimilarGamesCache = () => similarGamesCache.clear();
+
+const cacheSimilarGames = (query: SimilarGamesQuery, games: SimilarGame[]) => {
+  const key = similarGameKey(query);
+
+  similarGamesCache.delete(key);
+  similarGamesCache.set(key, games);
+  if (similarGamesCache.size > CACHE_LIMIT) {
+    similarGamesCache.delete(similarGamesCache.keys().next().value as string);
+  }
+};
 
 export type SimilarGamesSectionState = "hidden" | "loading" | "ready" | "empty";
 
@@ -370,6 +386,9 @@ export const fetchSimilarGames = async (
 ) => {
   if (!isSupportedShop(query.shop) || !query.objectId) return [];
 
+  const cached = getCachedSimilarGames(query);
+  if (cached) return cached;
+
   const [tagResults, similarResponse] = await Promise.all([
     query.shop === "steam"
       ? fetchTagMatches(query, api, downloadSourceIds)
@@ -377,5 +396,8 @@ export const fetchSimilarGames = async (
     fetchSimilarEndpoint(query, api.get, downloadSourceIds),
   ]);
 
-  return rankSimilarGames(tagResults, similarResponse, query);
+  const results = rankSimilarGames(tagResults, similarResponse, query);
+  if (results.length > 0) cacheSimilarGames(query, results);
+
+  return results;
 };

@@ -4,6 +4,7 @@ import { beforeEach, describe, it } from "node:test";
 import {
   clearSimilarGamesCache,
   fetchSimilarGames,
+  getCachedSimilarGames,
   getSimilarGamesSectionState,
   normalizeSimilarGamesResponse,
   orderTagsSpecificFirst,
@@ -401,6 +402,50 @@ describe("fetchSimilarGames", () => {
 
     assert.deepEqual(results, []);
     assert.equal(calls.length, 0);
+  });
+
+  it("returns cached results without calling the API again", async () => {
+    const { api, calls } = createApi({
+      tags: { tags },
+      search: () => [searchEdge("a")],
+    });
+
+    const first = await fetchSimilarGames(steamQuery, api);
+    const callCount = calls.length;
+    const second = await fetchSimilarGames(steamQuery, api);
+
+    assert.equal(second, first);
+    assert.equal(calls.length, callCount);
+    assert.equal(getCachedSimilarGames(steamQuery), first);
+  });
+
+  it("does not cache empty results", async () => {
+    const { api, calls } = createApi({ tags: { tags }, search: () => [] });
+
+    await fetchSimilarGames(steamQuery, api);
+    const callCount = calls.length;
+    await fetchSimilarGames(steamQuery, api);
+
+    assert.equal(calls.length, callCount * 2);
+    assert.equal(getCachedSimilarGames(steamQuery), undefined);
+  });
+
+  it("evicts the oldest entry past fifty games", async () => {
+    const { api } = createApi({
+      tags: { tags },
+      search: () => [searchEdge("a")],
+    });
+
+    for (let index = 0; index < 51; index += 1) {
+      await fetchSimilarGames({ objectId: `g-${index}`, shop: "steam" }, api);
+    }
+
+    assert.equal(
+      getCachedSimilarGames({ objectId: "g-0", shop: "steam" }),
+      undefined
+    );
+    assert.ok(getCachedSimilarGames({ objectId: "g-1", shop: "steam" }));
+    assert.ok(getCachedSimilarGames({ objectId: "g-50", shop: "steam" }));
   });
 });
 
