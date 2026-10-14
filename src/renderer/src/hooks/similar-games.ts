@@ -257,7 +257,11 @@ export const rankSimilarGames = (
       return;
     }
 
-    candidates.set(key, { game, hits: hit ? 1 : 0, firstSeen: candidates.size });
+    candidates.set(key, {
+      game,
+      hits: hit ? 1 : 0,
+      firstSeen: candidates.size,
+    });
   };
 
   for (const { tags, edges } of tagResults) {
@@ -313,7 +317,10 @@ const withSteamCover = (edge: unknown) => {
     return edge;
   }
 
-  return { ...candidate, coverImageUrl: steamCoverImageUrl(candidate.objectId) };
+  return {
+    ...candidate,
+    coverImageUrl: steamCoverImageUrl(candidate.objectId),
+  };
 };
 
 const searchByTags = async (
@@ -374,10 +381,13 @@ const fetchSimilarEndpoint = (
   get: SimilarGamesGet,
   downloadSourceIds: string[]
 ) =>
-  get(`/catalogue/${query.shop}/${encodeURIComponent(query.objectId)}/similar`, {
-    params: { take: SIMILAR_GAMES_LIMIT, downloadSourceIds },
-    needsAuth: false,
-  }).catch(() => []);
+  get(
+    `/catalogue/${query.shop}/${encodeURIComponent(query.objectId)}/similar`,
+    {
+      params: { take: SIMILAR_GAMES_LIMIT, downloadSourceIds },
+      needsAuth: false,
+    }
+  ).catch(() => []);
 
 export const fetchSimilarGames = async (
   query: SimilarGamesQuery,

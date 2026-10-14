@@ -453,9 +453,10 @@ describe("fetchSimilarGames", () => {
 describe("orderTagsSpecificFirst", () => {
   it("moves generic tags behind specific ones, keeping vote order in each group", () => {
     // 122 RPG and 4182 Singleplayer are generic; 4747, 1695, 1684 are specific.
-    assert.deepEqual(orderTagsSpecificFirst([122, 4747, 1695, 4182, 1684]), [
-      4747, 1695, 1684, 122, 4182,
-    ]);
+    assert.deepEqual(
+      orderTagsSpecificFirst([122, 4747, 1695, 4182, 1684]),
+      [4747, 1695, 1684, 122, 4182]
+    );
   });
 
   it("returns tags unchanged when none are generic", () => {
@@ -463,9 +464,10 @@ describe("orderTagsSpecificFirst", () => {
   });
 
   it("returns tags unchanged when all are generic", () => {
-    assert.deepEqual(orderTagsSpecificFirst([4182, 492, 19, 21]), [
-      4182, 492, 19, 21,
-    ]);
+    assert.deepEqual(
+      orderTagsSpecificFirst([4182, 492, 19, 21]),
+      [4182, 492, 19, 21]
+    );
   });
 });
 
@@ -573,7 +575,10 @@ describe("rankSimilarGames", () => {
 
     assert.equal(results.length, 12);
     assert.ok(results.every(({ objectId }) => objectId !== "current"));
-    assert.equal(results.filter(({ objectId }) => objectId === "t-1").length, 1);
+    assert.equal(
+      results.filter(({ objectId }) => objectId === "t-1").length,
+      1
+    );
   });
 
   it("treats a malformed similar response as empty", () => {
