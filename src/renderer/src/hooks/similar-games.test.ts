@@ -6,6 +6,7 @@ import {
   getSimilarGamesSectionState,
   normalizeSimilarGamesResponse,
   orderTagsSpecificFirst,
+  rankSimilarGames,
   type SimilarGame,
   type SimilarGamesApi,
 } from "./similar-games.js";
@@ -32,6 +33,7 @@ const game = (
   coverImageUrl: null,
   logoImageUrl: null,
   downloadSources: [],
+  sharedTagIds: [],
   ...overrides,
 });
 
@@ -405,5 +407,126 @@ describe("orderTagsSpecificFirst", () => {
     assert.deepEqual(orderTagsSpecificFirst([4182, 492, 19, 21]), [
       4182, 492, 19, 21,
     ]);
+  });
+});
+
+describe("rankSimilarGames", () => {
+  const query = { objectId: "current", shop: "steam" as const };
+
+  it("ranks games by how many queries returned them", () => {
+    const results = rankSimilarGames(
+      [
+        { tags: [1, 2, 3, 4, 5, 6], edges: [searchEdge("a")] },
+        { tags: [1, 2, 3, 4, 5], edges: [searchEdge("a"), searchEdge("b")] },
+        {
+          tags: [1, 2, 3, 4],
+          edges: [searchEdge("c"), searchEdge("a"), searchEdge("b")],
+        },
+      ],
+      [],
+      query
+    );
+
+    assert.deepEqual(
+      results.map(({ objectId }) => objectId),
+      ["a", "b", "c"]
+    );
+  });
+
+  it("records the narrowest query's tags as shared tags", () => {
+    const [a, b] = rankSimilarGames(
+      [
+        { tags: [1, 2, 3, 4, 5, 6], edges: [searchEdge("a")] },
+        { tags: [1, 2, 3, 4], edges: [searchEdge("a"), searchEdge("b")] },
+      ],
+      [],
+      query
+    );
+
+    assert.deepEqual(a.sharedTagIds, [1, 2, 3, 4, 5, 6]);
+    assert.deepEqual(b.sharedTagIds, [1, 2, 3, 4]);
+  });
+
+  it("prefers games with download sources when hits tie", () => {
+    const results = rankSimilarGames(
+      [
+        {
+          tags: [1, 2, 3, 4],
+          edges: [
+            { ...searchEdge("no-source"), downloadSources: [] },
+            searchEdge("with-source"),
+          ],
+        },
+      ],
+      [],
+      query
+    );
+
+    assert.deepEqual(
+      results.map(({ objectId }) => objectId),
+      ["with-source", "no-source"]
+    );
+  });
+
+  it("counts a game repeated inside one response as a single hit", () => {
+    const results = rankSimilarGames(
+      [
+        {
+          tags: [1, 2, 3, 4, 5],
+          edges: [searchEdge("twice"), searchEdge("twice"), searchEdge("once")],
+        },
+        { tags: [1, 2, 3, 4], edges: [searchEdge("once")] },
+      ],
+      [],
+      query
+    );
+
+    assert.deepEqual(
+      results.map(({ objectId }) => objectId),
+      ["once", "twice"]
+    );
+  });
+
+  it("appends similar-endpoint games after tag matches without shared tags", () => {
+    const results = rankSimilarGames(
+      [{ tags: [1, 2, 3, 4], edges: [searchEdge("tagged")] }],
+      [game("tagged"), game("extra")],
+      query
+    );
+
+    assert.deepEqual(
+      results.map(({ objectId }) => objectId),
+      ["tagged", "extra"]
+    );
+    assert.deepEqual(results[0].sharedTagIds, [1, 2, 3, 4]);
+    assert.deepEqual(results[1].sharedTagIds, []);
+  });
+
+  it("drops the current game and caps at twelve", () => {
+    const edges = Array.from({ length: 14 }, (_, index) =>
+      searchEdge(`t-${index}`)
+    );
+    const results = rankSimilarGames(
+      [{ tags: [1, 2, 3, 4], edges: [searchEdge("current"), ...edges] }],
+      [game("t-1"), game("more")],
+      query
+    );
+
+    assert.equal(results.length, 12);
+    assert.ok(results.every(({ objectId }) => objectId !== "current"));
+    assert.equal(results.filter(({ objectId }) => objectId === "t-1").length, 1);
+  });
+
+  it("treats a malformed similar response as empty", () => {
+    const results = rankSimilarGames(
+      [{ tags: [1, 2, 3, 4], edges: [searchEdge("a")] }],
+      {},
+      query
+    );
+
+    assert.deepEqual(
+      results.map(({ objectId }) => objectId),
+      ["a"]
+    );
   });
 });

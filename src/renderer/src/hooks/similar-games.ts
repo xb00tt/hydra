@@ -78,6 +78,8 @@ export interface SimilarGame {
   coverImageUrl: string | null;
   logoImageUrl: string | null;
   downloadSources: string[];
+  // Tags of the narrowest query that returned this game; empty for /similar results.
+  sharedTagIds: number[];
 }
 
 interface SimilarGamesGetOptions {
@@ -156,34 +158,103 @@ const normalizeSimilarGame = (value: unknown): SimilarGame | null => {
     coverImageUrl: optionalString(candidate.coverImageUrl),
     logoImageUrl: optionalString(candidate.logoImageUrl),
     downloadSources: normalizeDownloadSources(candidate.downloadSources),
+    sharedTagIds: [],
   };
+};
+
+export const similarGameKey = (game: { shop: string; objectId: string }) =>
+  `${game.shop}:${game.objectId}`;
+
+const normalizeCandidates = (response: unknown, query: SimilarGamesQuery) => {
+  if (!Array.isArray(response)) {
+    throw new TypeError("Invalid similar games response");
+  }
+
+  return response.flatMap((candidate) => {
+    const game = normalizeSimilarGame(candidate);
+
+    return game && game.shop === query.shop && game.objectId !== query.objectId
+      ? [game]
+      : [];
+  });
 };
 
 export const normalizeSimilarGamesResponse = (
   response: unknown,
   query: SimilarGamesQuery
 ) => {
-  if (!Array.isArray(response)) {
-    throw new TypeError("Invalid similar games response");
-  }
-
   const seen = new Set<string>();
 
-  return response
-    .flatMap((candidate) => {
-      const game = normalizeSimilarGame(candidate);
-
-      return game ? [game] : [];
-    })
+  return normalizeCandidates(response, query)
     .filter((game) => {
-      const key = `${game.shop}:${game.objectId}`;
-      const isValid =
-        game.shop === query.shop && game.objectId !== query.objectId;
+      const key = similarGameKey(game);
 
-      if (!isValid || seen.has(key)) return false;
+      if (seen.has(key)) return false;
       seen.add(key);
       return true;
     })
+    .slice(0, SIMILAR_GAMES_LIMIT);
+};
+
+export interface TagQueryResult {
+  tags: number[];
+  edges: unknown[];
+}
+
+interface RankedCandidate {
+  game: SimilarGame;
+  hits: number;
+  firstSeen: number;
+}
+
+// Tag results must arrive narrowest query first: the first query that returns
+// a game decides its sharedTagIds and its firstSeen position.
+export const rankSimilarGames = (
+  tagResults: TagQueryResult[],
+  similarResponse: unknown,
+  query: SimilarGamesQuery
+): SimilarGame[] => {
+  const candidates = new Map<string, RankedCandidate>();
+
+  const add = (game: SimilarGame, hit: boolean) => {
+    const key = similarGameKey(game);
+    const existing = candidates.get(key);
+
+    if (existing) {
+      if (hit) existing.hits += 1;
+      return;
+    }
+
+    candidates.set(key, { game, hits: hit ? 1 : 0, firstSeen: candidates.size });
+  };
+
+  for (const { tags, edges } of tagResults) {
+    const seenInQuery = new Set<string>();
+
+    for (const game of normalizeCandidates(edges, query)) {
+      const key = similarGameKey(game);
+
+      if (seenInQuery.has(key)) continue;
+      seenInQuery.add(key);
+      add({ ...game, sharedTagIds: tags }, true);
+    }
+  }
+
+  if (Array.isArray(similarResponse)) {
+    for (const game of normalizeCandidates(similarResponse, query)) {
+      add(game, false);
+    }
+  }
+
+  return [...candidates.values()]
+    .sort(
+      (a, b) =>
+        b.hits - a.hits ||
+        Number(b.game.downloadSources.length > 0) -
+          Number(a.game.downloadSources.length > 0) ||
+        a.firstSeen - b.firstSeen
+    )
+    .map(({ game }) => game)
     .slice(0, SIMILAR_GAMES_LIMIT);
 };
 
