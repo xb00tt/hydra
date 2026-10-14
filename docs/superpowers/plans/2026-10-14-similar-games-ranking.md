@@ -35,10 +35,12 @@
 ### Task 1: Tag ordering and new limit
 
 **Files:**
+
 - Modify: `src/renderer/src/hooks/similar-games.ts:3-5`
 - Test: `src/renderer/src/hooks/similar-games.test.ts`
 
 **Interfaces:**
+
 - Produces: `SIMILAR_GAMES_LIMIT = 12`, `GENERIC_STEAM_TAG_IDS: ReadonlySet<number>`, `orderTagsSpecificFirst(tags: number[]): number[]`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -49,9 +51,10 @@ Append to the end of `similar-games.test.ts` (after the `fetchSimilarGames` desc
 describe("orderTagsSpecificFirst", () => {
   it("moves generic tags behind specific ones, keeping vote order in each group", () => {
     // 122 RPG and 4182 Singleplayer are generic; 4747, 1695, 1684 are specific.
-    assert.deepEqual(orderTagsSpecificFirst([122, 4747, 1695, 4182, 1684]), [
-      4747, 1695, 1684, 122, 4182,
-    ]);
+    assert.deepEqual(
+      orderTagsSpecificFirst([122, 4747, 1695, 4182, 1684]),
+      [4747, 1695, 1684, 122, 4182]
+    );
   });
 
   it("returns tags unchanged when none are generic", () => {
@@ -59,9 +62,10 @@ describe("orderTagsSpecificFirst", () => {
   });
 
   it("returns tags unchanged when all are generic", () => {
-    assert.deepEqual(orderTagsSpecificFirst([4182, 492, 19, 21]), [
-      4182, 492, 19, 21,
-    ]);
+    assert.deepEqual(
+      orderTagsSpecificFirst([4182, 492, 19, 21]),
+      [4182, 492, 19, 21]
+    );
   });
 });
 ```
@@ -74,7 +78,7 @@ Also update the two existing limit tests in the `normalizeSimilarGamesResponse` 
 The old `fetchSimilarGames` tests hard-code the old limit; Task 3 rewrites them, but they must pass now. Make these three edits in that block:
 
 - In `"builds steam results from tag searches, narrowest tier first"`, change `take: 10,` to `take: 13,` (the old code requests `SIMILAR_GAMES_LIMIT + 1`).
-- In `"fills remaining slots from the similar endpoint"`, change `Array.from({ length: 8 }, (_, index) => \`similar-${index}\`)` to `Array.from({ length: 9 }, (_, index) => \`similar-${index}\`)` and `params: { take: 9, downloadSourceIds: ["source-a"] }` to `params: { take: 12, downloadSourceIds: ["source-a"] }`.
+- In `"fills remaining slots from the similar endpoint"`, change `Array.from({ length: 8 }, (_, index) => \`similar-${index}\`)` to `Array.from({ length: 9 }, (_, index) => \`similar-${index}\`)`and`params: { take: 9, downloadSourceIds: ["source-a"] }`to`params: { take: 12, downloadSourceIds: ["source-a"] }`.
 - In `"uses the similar endpoint alone for launchbox games"`, change `params: { take: 9, downloadSourceIds: ["source-b", "source-a"] }` to `params: { take: 12, downloadSourceIds: ["source-b", "source-a"] }`.
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -158,10 +162,12 @@ git commit -m "feat(similar-games): order tags specific-first and raise limit to
 ### Task 2: Ranking with hit-count scoring
 
 **Files:**
+
 - Modify: `src/renderer/src/hooks/similar-games.ts` (`SimilarGame`, `normalizeSimilarGame`, `normalizeSimilarGamesResponse`)
 - Test: `src/renderer/src/hooks/similar-games.test.ts`
 
 **Interfaces:**
+
 - Consumes: `SIMILAR_GAMES_LIMIT`.
 - Produces: `SimilarGame.sharedTagIds: number[]`; `interface TagQueryResult { tags: number[]; edges: unknown[] }`; `rankSimilarGames(tagResults: TagQueryResult[], similarResponse: unknown, query: SimilarGamesQuery): SimilarGame[]`; `similarGameKey(game: { shop: string; objectId: string }): string`.
 
@@ -282,7 +288,10 @@ describe("rankSimilarGames", () => {
 
     assert.equal(results.length, 12);
     assert.ok(results.every(({ objectId }) => objectId !== "current"));
-    assert.equal(results.filter(({ objectId }) => objectId === "t-1").length, 1);
+    assert.equal(
+      results.filter(({ objectId }) => objectId === "t-1").length,
+      1
+    );
   });
 
   it("treats a malformed similar response as empty", () => {
@@ -396,7 +405,11 @@ export const rankSimilarGames = (
       return;
     }
 
-    candidates.set(key, { game, hits: hit ? 1 : 0, firstSeen: candidates.size });
+    candidates.set(key, {
+      game,
+      hits: hit ? 1 : 0,
+      firstSeen: candidates.size,
+    });
   };
 
   for (const { tags, edges } of tagResults) {
@@ -447,10 +460,12 @@ git commit -m "feat(similar-games): rank candidates by query hit count"
 ### Task 3: Parallel fetch with four queries and resilient fallbacks
 
 **Files:**
+
 - Modify: `src/renderer/src/hooks/similar-games.ts` (`searchByTags`, `fetchTagMatches`, `fetchSimilarGames`, remove `SIMILAR_GAMES_TAG_TIERS`)
 - Test: `src/renderer/src/hooks/similar-games.test.ts` (rewrite the `fetchSimilarGames` block)
 
 **Interfaces:**
+
 - Consumes: `orderTagsSpecificFirst`, `rankSimilarGames`, `TagQueryResult`.
 - Produces: `SIMILAR_GAMES_TAG_QUERIES`, `type SimilarGamesSortBy = "popularity" | "reviewScore"`; `fetchSimilarGames` keeps its signature `(query, api, downloadSourceIds?) => Promise<SimilarGame[]>`.
 
@@ -498,7 +513,9 @@ const searchCalls = (calls: ApiCall[]) =>
     .filter((call) => call.method === "post")
     .map((call) => {
       const { tags, sortBy, take } = (
-        call.options as { data: { tags: number[]; sortBy: string; take: number } }
+        call.options as {
+          data: { tags: number[]; sortBy: string; take: number };
+        }
       ).data;
       return { tags, sortBy, take };
     });
@@ -764,7 +781,10 @@ const withSteamCover = (edge: unknown) => {
     return edge;
   }
 
-  return { ...candidate, coverImageUrl: steamCoverImageUrl(candidate.objectId) };
+  return {
+    ...candidate,
+    coverImageUrl: steamCoverImageUrl(candidate.objectId),
+  };
 };
 
 const searchByTags = async (
@@ -825,10 +845,13 @@ const fetchSimilarEndpoint = (
   get: SimilarGamesGet,
   downloadSourceIds: string[]
 ) =>
-  get(`/catalogue/${query.shop}/${encodeURIComponent(query.objectId)}/similar`, {
-    params: { take: SIMILAR_GAMES_LIMIT, downloadSourceIds },
-    needsAuth: false,
-  }).catch(() => []);
+  get(
+    `/catalogue/${query.shop}/${encodeURIComponent(query.objectId)}/similar`,
+    {
+      params: { take: SIMILAR_GAMES_LIMIT, downloadSourceIds },
+      needsAuth: false,
+    }
+  ).catch(() => []);
 
 export const fetchSimilarGames = async (
   query: SimilarGamesQuery,
@@ -867,10 +890,12 @@ git commit -m "feat(similar-games): run four tag queries and /similar in paralle
 ### Task 4: Session cache
 
 **Files:**
+
 - Modify: `src/renderer/src/hooks/similar-games.ts` (`fetchSimilarGames`, replace the `clearSimilarGamesCache` stub)
 - Test: `src/renderer/src/hooks/similar-games.test.ts`
 
 **Interfaces:**
+
 - Produces: `getCachedSimilarGames(query: SimilarGamesQuery): SimilarGame[] | undefined`, `clearSimilarGamesCache(): void`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -878,46 +903,49 @@ git commit -m "feat(similar-games): run four tag queries and /similar in paralle
 Add `getCachedSimilarGames` to the test imports. Append inside the `fetchSimilarGames` describe block:
 
 ```ts
-  it("returns cached results without calling the API again", async () => {
-    const { api, calls } = createApi({
-      tags: { tags },
-      search: () => [searchEdge("a")],
-    });
-
-    const first = await fetchSimilarGames(steamQuery, api);
-    const callCount = calls.length;
-    const second = await fetchSimilarGames(steamQuery, api);
-
-    assert.equal(second, first);
-    assert.equal(calls.length, callCount);
-    assert.equal(getCachedSimilarGames(steamQuery), first);
+it("returns cached results without calling the API again", async () => {
+  const { api, calls } = createApi({
+    tags: { tags },
+    search: () => [searchEdge("a")],
   });
 
-  it("does not cache empty results", async () => {
-    const { api, calls } = createApi({ tags: { tags }, search: () => [] });
+  const first = await fetchSimilarGames(steamQuery, api);
+  const callCount = calls.length;
+  const second = await fetchSimilarGames(steamQuery, api);
 
-    await fetchSimilarGames(steamQuery, api);
-    const callCount = calls.length;
-    await fetchSimilarGames(steamQuery, api);
+  assert.equal(second, first);
+  assert.equal(calls.length, callCount);
+  assert.equal(getCachedSimilarGames(steamQuery), first);
+});
 
-    assert.equal(calls.length, callCount * 2);
-    assert.equal(getCachedSimilarGames(steamQuery), undefined);
+it("does not cache empty results", async () => {
+  const { api, calls } = createApi({ tags: { tags }, search: () => [] });
+
+  await fetchSimilarGames(steamQuery, api);
+  const callCount = calls.length;
+  await fetchSimilarGames(steamQuery, api);
+
+  assert.equal(calls.length, callCount * 2);
+  assert.equal(getCachedSimilarGames(steamQuery), undefined);
+});
+
+it("evicts the oldest entry past fifty games", async () => {
+  const { api } = createApi({
+    tags: { tags },
+    search: () => [searchEdge("a")],
   });
 
-  it("evicts the oldest entry past fifty games", async () => {
-    const { api } = createApi({
-      tags: { tags },
-      search: () => [searchEdge("a")],
-    });
+  for (let index = 0; index < 51; index += 1) {
+    await fetchSimilarGames({ objectId: `g-${index}`, shop: "steam" }, api);
+  }
 
-    for (let index = 0; index < 51; index += 1) {
-      await fetchSimilarGames({ objectId: `g-${index}`, shop: "steam" }, api);
-    }
-
-    assert.equal(getCachedSimilarGames({ objectId: "g-0", shop: "steam" }), undefined);
-    assert.ok(getCachedSimilarGames({ objectId: "g-1", shop: "steam" }));
-    assert.ok(getCachedSimilarGames({ objectId: "g-50", shop: "steam" }));
-  });
+  assert.equal(
+    getCachedSimilarGames({ objectId: "g-0", shop: "steam" }),
+    undefined
+  );
+  assert.ok(getCachedSimilarGames({ objectId: "g-1", shop: "steam" }));
+  assert.ok(getCachedSimilarGames({ objectId: "g-50", shop: "steam" }));
+});
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -952,17 +980,17 @@ const cacheSimilarGames = (query: SimilarGamesQuery, games: SimilarGame[]) => {
 In `fetchSimilarGames`, after the shop guard add:
 
 ```ts
-  const cached = getCachedSimilarGames(query);
-  if (cached) return cached;
+const cached = getCachedSimilarGames(query);
+if (cached) return cached;
 ```
 
 and replace the final `return rankSimilarGames(...)` with:
 
 ```ts
-  const results = rankSimilarGames(tagResults, similarResponse, query);
-  if (results.length > 0) cacheSimilarGames(query, results);
+const results = rankSimilarGames(tagResults, similarResponse, query);
+if (results.length > 0) cacheSimilarGames(query, results);
 
-  return results;
+return results;
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -982,10 +1010,12 @@ git commit -m "feat(similar-games): cache ranked results per game for the sessio
 ### Task 5: View building (ownership and shared tag names)
 
 **Files:**
+
 - Modify: `src/renderer/src/hooks/similar-games.ts`
 - Test: `src/renderer/src/hooks/similar-games.test.ts`
 
 **Interfaces:**
+
 - Consumes: `SimilarGame`, `similarGameKey`.
 - Produces: `interface SimilarGameView extends SimilarGame { sharedTags: string[]; inLibrary: boolean }`, `SHARED_TAGS_SHOWN = 2`, `buildSimilarGameViews(games: SimilarGame[], ownedKeys: ReadonlySet<string>, tagNameById: ReadonlyMap<number, string>): SimilarGameView[]`.
 
@@ -1111,10 +1141,12 @@ git commit -m "feat(similar-games): build card views with ownership and shared t
 ### Task 6: Hook wiring (cache, library, tag names)
 
 **Files:**
+
 - Modify: `src/renderer/src/hooks/use-catalogue.ts:16` (export `getLocalizedSteamMetadata`)
 - Modify: `src/renderer/src/hooks/use-similar-games.ts` (full rewrite)
 
 **Interfaces:**
+
 - Consumes: `buildSimilarGameViews`, `fetchSimilarGames`, `getCachedSimilarGames`, `similarGameKey`, `SimilarGameView`; redux `state.catalogueSearch.steamUserTags`, `setTags` from `@renderer/features`; `useLibrary`.
 - Produces: `useSimilarGames(query) => { games: SimilarGameView[]; isLoading: boolean; isEligible: boolean }`.
 
@@ -1296,10 +1328,12 @@ git commit -m "feat(similar-games): serve cached results and resolve ownership a
 ### Task 7: Card caption and library badge
 
 **Files:**
+
 - Modify: `src/renderer/src/pages/game-details/similar-games/similar-games.tsx:122-140`
 - Modify: `src/renderer/src/pages/game-details/similar-games/similar-games.scss` (`&__slide`, new `&__caption`, `&__badge`)
 
 **Interfaces:**
+
 - Consumes: `SimilarGameView.sharedTags`, `SimilarGameView.inLibrary` via `useSimilarGames`.
 
 - [ ] **Step 1: Render caption and badge**
@@ -1307,36 +1341,36 @@ git commit -m "feat(similar-games): serve cached results and resolve ownership a
 In `similar-games.tsx` replace the slide body inside `games.map(...)`:
 
 ```tsx
-              {games.map((similarGame) => {
-                const caption = similarGame.sharedTags.join(" · ");
+{
+  games.map((similarGame) => {
+    const caption = similarGame.sharedTags.join(" · ");
 
-                return (
-                  <SimilarGamesSlide
-                    key={`${similarGame.shop}:${similarGame.objectId}`}
-                  >
-                    <VerticalCoverCard
-                      className="similar-games__card"
-                      gameTitle={similarGame.title}
-                      coverImageUrls={[
-                        similarGame.coverImageUrl,
-                        similarGame.libraryImageUrl,
-                        similarGame.iconUrl,
-                      ]}
-                      useClassicsLayout={similarGame.shop === "launchbox"}
-                      onClick={() => navigate(buildGameDetailsPath(similarGame))}
-                    >
-                      {similarGame.inLibrary ? (
-                        <span className="similar-games__badge">
-                          {t("already_in_library")}
-                        </span>
-                      ) : null}
-                    </VerticalCoverCard>
-                    <p className="similar-games__caption" title={caption}>
-                      {caption}
-                    </p>
-                  </SimilarGamesSlide>
-                );
-              })}
+    return (
+      <SimilarGamesSlide key={`${similarGame.shop}:${similarGame.objectId}`}>
+        <VerticalCoverCard
+          className="similar-games__card"
+          gameTitle={similarGame.title}
+          coverImageUrls={[
+            similarGame.coverImageUrl,
+            similarGame.libraryImageUrl,
+            similarGame.iconUrl,
+          ]}
+          useClassicsLayout={similarGame.shop === "launchbox"}
+          onClick={() => navigate(buildGameDetailsPath(similarGame))}
+        >
+          {similarGame.inLibrary ? (
+            <span className="similar-games__badge">
+              {t("already_in_library")}
+            </span>
+          ) : null}
+        </VerticalCoverCard>
+        <p className="similar-games__caption" title={caption}>
+          {caption}
+        </p>
+      </SimilarGamesSlide>
+    );
+  });
+}
 ```
 
 This drops `showTitleTooltip={false}` so the card's default title tooltip is back.
@@ -1346,42 +1380,42 @@ This drops `showTitleTooltip={false}` so the card's default title tooltip is bac
 In `similar-games.scss` extend `&__slide` and add the two blocks after `&__card:hover`:
 
 ```scss
-  &__slide {
-    display: flex;
-    flex: 0 0 calc(100% / 3);
-    flex-direction: column;
-    gap: calc(globals.$spacing-unit / 2);
-    min-width: 0;
-    padding: 3px globals.$spacing-unit;
-  }
+&__slide {
+  display: flex;
+  flex: 0 0 calc(100% / 3);
+  flex-direction: column;
+  gap: calc(globals.$spacing-unit / 2);
+  min-width: 0;
+  padding: 3px globals.$spacing-unit;
+}
 
-  &__card:hover {
-    transform: scale($card-hover-scale);
-  }
+&__card:hover {
+  transform: scale($card-hover-scale);
+}
 
-  &__caption {
-    min-height: 1.2em;
-    margin: 0;
-    overflow: hidden;
-    font-size: 12px;
-    line-height: 1.2;
-    color: globals.$body-color;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+&__caption {
+  min-height: 1.2em;
+  margin: 0;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.2;
+  color: globals.$body-color;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-  &__badge {
-    position: absolute;
-    top: globals.$spacing-unit;
-    right: globals.$spacing-unit;
-    z-index: 1;
-    padding: 2px 6px;
-    font-size: 11px;
-    font-weight: 600;
-    color: globals.$muted-color;
-    background: rgba(0, 0, 0, 0.7);
-    border-radius: 4px;
-  }
+&__badge {
+  position: absolute;
+  top: globals.$spacing-unit;
+  right: globals.$spacing-unit;
+  z-index: 1;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: globals.$muted-color;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+}
 ```
 
 - [ ] **Step 3: Lint and typecheck**
@@ -1401,6 +1435,7 @@ git commit -m "feat(similar-games): show shared tags and library badge on cards"
 ### Task 8: Full verification and rebuild
 
 **Files:**
+
 - No source edits unless verification fails.
 
 - [ ] **Step 1: Run the full checks**
@@ -1422,13 +1457,13 @@ Expected: `dist/linux-unpacked/hydralauncher` updated, no errors in output.
 
 Launch with `gio launch ~/Desktop/hydra-patched.desktop` and open these game pages:
 
-| Game | Steam id | Expect |
-| --- | --- | --- |
-| Return to Monkey Island | 2060130 | Neighbours are adventure or point-and-click games; captions like "Point & Click · Puzzle" |
-| Hades | 1145360 | Roguelike or action roguelike neighbours; captions name those tags |
-| Any game you own with owned neighbours | any | Owned neighbours carry the "Already in library" pill and sit at the end of the carousel |
-| Any of the above, navigate away and back | - | Section appears without a skeleton |
-| Add a neighbour to the library while on the page | - | Its card gains the pill and moves to the end without a refetch |
+| Game                                             | Steam id | Expect                                                                                    |
+| ------------------------------------------------ | -------- | ----------------------------------------------------------------------------------------- |
+| Return to Monkey Island                          | 2060130  | Neighbours are adventure or point-and-click games; captions like "Point & Click · Puzzle" |
+| Hades                                            | 1145360  | Roguelike or action roguelike neighbours; captions name those tags                        |
+| Any game you own with owned neighbours           | any      | Owned neighbours carry the "Already in library" pill and sit at the end of the carousel   |
+| Any of the above, navigate away and back         | -        | Section appears without a skeleton                                                        |
+| Add a neighbour to the library while on the page | -        | Its card gains the pill and moves to the end without a refetch                            |
 
 Also confirm a LaunchBox game page still shows its section, and a `custom` game page shows none.
 

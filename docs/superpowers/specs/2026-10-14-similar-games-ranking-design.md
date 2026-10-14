@@ -42,41 +42,41 @@ tags, each keeping vote order. Generic tags are a fixed id set
 `GENERIC_STEAM_TAG_IDS` in `similar-games.ts`, ids verified against the live
 `/catalogue/steam/tags?language=en` response on 2026-10-14:
 
-| Tag | Id |
-| --- | --- |
-| Singleplayer | 4182 |
-| Multiplayer | 3859 |
-| Online Co-Op | 3843 |
-| Co-op | 1685 |
-| Indie | 492 |
-| Action | 19 |
-| Adventure | 21 |
-| Casual | 597 |
-| Simulation | 599 |
-| Strategy | 9 |
-| RPG | 122 |
-| Free to Play | 113 |
-| Early Access | 493 |
-| Great Soundtrack | 1756 |
-| Atmospheric | 4166 |
-| 2D | 3871 |
-| 3D | 4191 |
-| Controller | 7481 |
-| Difficult | 4026 |
-| Cute | 4726 |
-| Colorful | 4305 |
-| Funny | 4136 |
-| Relaxing | 1654 |
-| Family Friendly | 5350 |
-| Classic | 1693 |
-| Moddable | 1669 |
-| Stylized | 4252 |
-| Realistic | 4175 |
-| Violent | 4667 |
-| Gore | 4345 |
-| Mature | 5611 |
-| Nudity | 6650 |
-| Sexual Content | 12095 |
+| Tag              | Id    |
+| ---------------- | ----- |
+| Singleplayer     | 4182  |
+| Multiplayer      | 3859  |
+| Online Co-Op     | 3843  |
+| Co-op            | 1685  |
+| Indie            | 492   |
+| Action           | 19    |
+| Adventure        | 21    |
+| Casual           | 597   |
+| Simulation       | 599   |
+| Strategy         | 9     |
+| RPG              | 122   |
+| Free to Play     | 113   |
+| Early Access     | 493   |
+| Great Soundtrack | 1756  |
+| Atmospheric      | 4166  |
+| 2D               | 3871  |
+| 3D               | 4191  |
+| Controller       | 7481  |
+| Difficult        | 4026  |
+| Cute             | 4726  |
+| Colorful         | 4305  |
+| Funny            | 4136  |
+| Relaxing         | 1654  |
+| Family Friendly  | 5350  |
+| Classic          | 1693  |
+| Moddable         | 1669  |
+| Stylized         | 4252  |
+| Realistic        | 4175  |
+| Violent          | 4667  |
+| Gore             | 4345  |
+| Mature           | 5611  |
+| Nudity           | 6650  |
+| Sexual Content   | 12095 |
 
 Partitioning rather than dropping keeps the tier sizes intact for games with
 few specific tags. Tags not in the set ("Point & Click", "Detective",
@@ -89,12 +89,12 @@ For Steam games with at least 4 tags after partitioning, run these searches in
 parallel. Each uses the existing `/catalogue/search` payload shape with
 `take: 15` (the endpoint rejects `take` below 5) and `skip: 0`.
 
-| Key | Tags | sortBy | Purpose |
-| --- | --- | --- | --- |
-| tier6 | first 6 | popularity desc | tight match |
-| tier5 | first 5 | popularity desc | medium match |
+| Key    | Tags    | sortBy           | Purpose                                       |
+| ------ | ------- | ---------------- | --------------------------------------------- |
+| tier6  | first 6 | popularity desc  | tight match                                   |
+| tier5  | first 5 | popularity desc  | medium match                                  |
 | rated5 | first 5 | reviewScore desc | diversity, surfaces well-reviewed small games |
-| tier4 | first 4 | popularity desc | loose match |
+| tier4  | first 4 | popularity desc  | loose match                                   |
 
 A query whose tier size exceeds the tag count is skipped, as today.
 
