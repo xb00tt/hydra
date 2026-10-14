@@ -98,24 +98,38 @@ export function SimilarGames({ objectId, shop }: Readonly<SimilarGamesProps>) {
         <div className="similar-games__carousel">
           <div className="similar-games__viewport" ref={emblaRef}>
             <div className="similar-games__container">
-              {games.map((similarGame) => (
-                <SimilarGamesSlide
-                  key={`${similarGame.shop}:${similarGame.objectId}`}
-                >
-                  <VerticalCoverCard
-                    className="similar-games__card"
-                    gameTitle={similarGame.title}
-                    coverImageUrls={[
-                      similarGame.coverImageUrl,
-                      similarGame.libraryImageUrl,
-                      similarGame.iconUrl,
-                    ]}
-                    useClassicsLayout={similarGame.shop === "launchbox"}
-                    showTitleTooltip={false}
-                    onClick={() => navigate(buildGameDetailsPath(similarGame))}
-                  />
-                </SimilarGamesSlide>
-              ))}
+              {games.map((similarGame) => {
+                const caption = similarGame.sharedTags.join(" · ");
+
+                return (
+                  <SimilarGamesSlide
+                    key={`${similarGame.shop}:${similarGame.objectId}`}
+                  >
+                    <VerticalCoverCard
+                      className="similar-games__card"
+                      gameTitle={similarGame.title}
+                      coverImageUrls={[
+                        similarGame.coverImageUrl,
+                        similarGame.libraryImageUrl,
+                        similarGame.iconUrl,
+                      ]}
+                      useClassicsLayout={similarGame.shop === "launchbox"}
+                      onClick={() =>
+                        navigate(buildGameDetailsPath(similarGame))
+                      }
+                    >
+                      {similarGame.inLibrary ? (
+                        <span className="similar-games__badge">
+                          {t("already_in_library")}
+                        </span>
+                      ) : null}
+                    </VerticalCoverCard>
+                    <p className="similar-games__caption" title={caption}>
+                      {caption}
+                    </p>
+                  </SimilarGamesSlide>
+                );
+              })}
             </div>
 
             <button
