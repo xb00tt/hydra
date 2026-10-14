@@ -46,8 +46,24 @@ export const orderTagsSpecificFirst = (tags: number[]) => [
   ...tags.filter((tag) => GENERIC_STEAM_TAG_IDS.has(tag)),
 ];
 
-// Replaced by SIMILAR_GAMES_TAG_QUERIES in Task 3.
-export const SIMILAR_GAMES_TAG_TIERS = [6, 5, 4];
+const SEARCH_TAKE = 15; // /catalogue/search rejects take below 5
+
+export type SimilarGamesSortBy = "popularity" | "reviewScore";
+
+export interface SimilarGamesTagQuery {
+  size: number;
+  sortBy: SimilarGamesSortBy;
+}
+
+// Narrowest first; this order also decides which query's tags a game shares.
+export const SIMILAR_GAMES_TAG_QUERIES: readonly SimilarGamesTagQuery[] = [
+  { size: 6, sortBy: "popularity" },
+  { size: 5, sortBy: "popularity" },
+  { size: 5, sortBy: "reviewScore" },
+  { size: 4, sortBy: "popularity" },
+];
+
+export const clearSimilarGamesCache = () => {};
 
 export type SimilarGamesSectionState = "hidden" | "loading" | "ready" | "empty";
 
@@ -275,17 +291,27 @@ const fetchGameTags = async (
   return tags.map(Number).filter(Number.isInteger);
 };
 
+const withSteamCover = (edge: unknown) => {
+  const candidate = edge as { objectId?: unknown; shop?: unknown } | null;
+  if (typeof candidate?.objectId !== "string" || candidate.shop !== "steam") {
+    return edge;
+  }
+
+  return { ...candidate, coverImageUrl: steamCoverImageUrl(candidate.objectId) };
+};
+
 const searchByTags = async (
   tags: number[],
+  sortBy: SimilarGamesSortBy,
   post: SimilarGamesPost,
   downloadSourceIds: string[]
-): Promise<unknown[]> => {
+): Promise<TagQueryResult> => {
   const response = await post("/catalogue/search", {
     data: {
-      take: SIMILAR_GAMES_LIMIT + 1,
+      take: SEARCH_TAKE,
       skip: 0,
       title: "",
-      sortBy: "popularity",
+      sortBy,
       sortOrder: "desc",
       downloadSourceIds,
       downloadSourceFingerprints: [],
@@ -299,40 +325,43 @@ const searchByTags = async (
     needsAuth: false,
   });
   const edges = (response as { edges?: unknown } | null)?.edges;
-  if (!Array.isArray(edges)) return [];
 
-  return edges.map((edge) => {
-    const candidate = edge as { objectId?: unknown; shop?: unknown } | null;
-    if (typeof candidate?.objectId !== "string" || candidate.shop !== "steam") {
-      return edge;
-    }
-
-    return {
-      ...candidate,
-      coverImageUrl: steamCoverImageUrl(candidate.objectId),
-    };
-  });
+  return { tags, edges: Array.isArray(edges) ? edges.map(withSteamCover) : [] };
 };
 
 const fetchTagMatches = async (
   query: SimilarGamesQuery,
   api: SimilarGamesApi,
   downloadSourceIds: string[]
-) => {
+): Promise<TagQueryResult[]> => {
+  let tags: number[];
   try {
-    const tags = await fetchGameTags(query, api.get);
-    const tiers = SIMILAR_GAMES_TAG_TIERS.filter((size) => size <= tags.length);
-    const results = await Promise.all(
-      tiers.map((size) =>
-        searchByTags(tags.slice(0, size), api.post, downloadSourceIds)
-      )
-    );
-
-    return normalizeSimilarGamesResponse(results.flat(), query);
+    tags = orderTagsSpecificFirst(await fetchGameTags(query, api.get));
   } catch {
     return [];
   }
+
+  const settled = await Promise.allSettled(
+    SIMILAR_GAMES_TAG_QUERIES.filter(({ size }) => size <= tags.length).map(
+      ({ size, sortBy }) =>
+        searchByTags(tags.slice(0, size), sortBy, api.post, downloadSourceIds)
+    )
+  );
+
+  return settled.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : []
+  );
 };
+
+const fetchSimilarEndpoint = (
+  query: SimilarGamesQuery,
+  get: SimilarGamesGet,
+  downloadSourceIds: string[]
+) =>
+  get(`/catalogue/${query.shop}/${encodeURIComponent(query.objectId)}/similar`, {
+    params: { take: SIMILAR_GAMES_LIMIT, downloadSourceIds },
+    needsAuth: false,
+  }).catch(() => []);
 
 export const fetchSimilarGames = async (
   query: SimilarGamesQuery,
@@ -341,22 +370,12 @@ export const fetchSimilarGames = async (
 ) => {
   if (!isSupportedShop(query.shop) || !query.objectId) return [];
 
-  const tagMatches =
+  const [tagResults, similarResponse] = await Promise.all([
     query.shop === "steam"
-      ? await fetchTagMatches(query, api, downloadSourceIds)
-      : [];
-  if (tagMatches.length >= SIMILAR_GAMES_LIMIT) return tagMatches;
+      ? fetchTagMatches(query, api, downloadSourceIds)
+      : Promise.resolve([]),
+    fetchSimilarEndpoint(query, api.get, downloadSourceIds),
+  ]);
 
-  const response = await api.get(
-    `/catalogue/${query.shop}/${encodeURIComponent(query.objectId)}/similar`,
-    {
-      params: { take: SIMILAR_GAMES_LIMIT, downloadSourceIds },
-      needsAuth: false,
-    }
-  );
-
-  return normalizeSimilarGamesResponse(
-    [...tagMatches, ...normalizeSimilarGamesResponse(response, query)],
-    query
-  );
+  return rankSimilarGames(tagResults, similarResponse, query);
 };

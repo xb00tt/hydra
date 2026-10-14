@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { beforeEach, describe, it } from "node:test";
 
 import {
+  clearSimilarGamesCache,
   fetchSimilarGames,
   getSimilarGamesSectionState,
   normalizeSimilarGamesResponse,
@@ -146,8 +147,8 @@ interface ApiCall {
 
 const createApi = (handlers: {
   tags?: unknown | (() => Promise<unknown>);
-  search?: (tags: number[]) => unknown;
-  similar?: unknown;
+  search?: (tags: number[], sortBy: string) => unknown;
+  similar?: unknown | (() => Promise<unknown>);
 }) => {
   const calls: ApiCall[] = [];
   const api: SimilarGamesApi = {
@@ -158,13 +159,18 @@ const createApi = (handlers: {
           ? handlers.tags()
           : handlers.tags;
       }
-      return handlers.similar ?? [];
+      return typeof handlers.similar === "function"
+        ? handlers.similar()
+        : (handlers.similar ?? []);
     },
     post: async (path, options) => {
       calls.push({ method: "post", path, options });
-      const { tags } = options.data as { tags: number[] };
+      const { tags, sortBy } = options.data as {
+        tags: number[];
+        sortBy: string;
+      };
       if (!handlers.search) throw new Error("unexpected search");
-      return { edges: handlers.search(tags), count: 0 };
+      return { edges: handlers.search(tags, sortBy), count: 0 };
     },
   };
 
@@ -173,67 +179,59 @@ const createApi = (handlers: {
 
 const paths = (calls: ApiCall[]) => calls.map((call) => call.path);
 
+const searchCalls = (calls: ApiCall[]) =>
+  calls
+    .filter((call) => call.method === "post")
+    .map((call) => {
+      const { tags, sortBy, take } = (
+        call.options as {
+          data: { tags: number[]; sortBy: string; take: number };
+        }
+      ).data;
+      return { tags, sortBy, take };
+    });
+
 describe("fetchSimilarGames", () => {
   const steamQuery = { objectId: "current", shop: "steam" as const };
+  // 21 (Adventure) and 4166 (Atmospheric) are generic and move to the back.
   const tags = ["21", "1698", "1719", "5923", "1738", "4166", "7"];
+  const ordered = [1698, 1719, 5923, 1738, 7, 21, 4166];
 
-  it("builds steam results from tag searches, narrowest tier first", async () => {
+  beforeEach(() => clearSimilarGamesCache());
+
+  it("runs four tag searches and the similar endpoint in parallel", async () => {
     const { api, calls } = createApi({
       tags: { tags },
-      search: (requested) => {
-        if (requested.length === 6) {
-          return [searchEdge("current"), searchEdge("a"), searchEdge("b")];
-        }
-        if (requested.length === 5) return [searchEdge("b"), searchEdge("c")];
-        return Array.from({ length: 10 }, (_, index) =>
-          searchEdge(`wide-${index}`)
-        );
-      },
+      search: (requested) => [searchEdge(`len-${requested.length}`)],
+      similar: [game("from-similar")],
     });
 
     const results = await fetchSimilarGames(steamQuery, api, ["source-a"]);
 
-    assert.deepEqual(
-      results.map(({ objectId }) => objectId),
-      [
-        "a",
-        "b",
-        "c",
-        "wide-0",
-        "wide-1",
-        "wide-2",
-        "wide-3",
-        "wide-4",
-        "wide-5",
-        "wide-6",
-        "wide-7",
-        "wide-8",
-      ]
-    );
-    assert.equal(
-      results[0].coverImageUrl,
-      "https://shared.steamstatic.com/store_item_assets/steam/apps/a/library_600x900_2x.jpg"
-    );
-    assert.equal(results[0].libraryImageUrl, "https://example.com/a.jpg");
-    assert.deepEqual(results[0].downloadSources, ["Source"]);
-
-    assert.deepEqual(paths(calls), [
-      "/games/steam/current",
-      "/catalogue/search",
-      "/catalogue/search",
-      "/catalogue/search",
+    assert.deepEqual(searchCalls(calls), [
+      { tags: ordered.slice(0, 6), sortBy: "popularity", take: 15 },
+      { tags: ordered.slice(0, 5), sortBy: "popularity", take: 15 },
+      { tags: ordered.slice(0, 5), sortBy: "reviewScore", take: 15 },
+      { tags: ordered.slice(0, 4), sortBy: "popularity", take: 15 },
     ]);
-    assert.deepEqual(calls[0].options, { needsAuth: false });
+    assert.deepEqual(paths(calls).slice(0, 2), [
+      "/games/steam/current",
+      "/catalogue/steam/current/similar",
+    ]);
     assert.deepEqual(calls[1].options, {
+      params: { take: 12, downloadSourceIds: ["source-a"] },
+      needsAuth: false,
+    });
+    assert.deepEqual(calls[2].options, {
       data: {
-        take: 13,
+        take: 15,
         skip: 0,
         title: "",
         sortBy: "popularity",
         sortOrder: "desc",
         downloadSourceIds: ["source-a"],
         downloadSourceFingerprints: [],
-        tags: [21, 1698, 1719, 5923, 1738, 4166],
+        tags: ordered.slice(0, 6),
         publishers: [],
         genres: [],
         developers: [],
@@ -242,66 +240,49 @@ describe("fetchSimilarGames", () => {
       },
       needsAuth: false,
     });
+    // len-5 was returned by two queries, so it outranks the single-hit games.
     assert.deepEqual(
-      calls
-        .slice(1)
-        .map(
-          (call) => (call.options as { data: { tags: number[] } }).data.tags
-        ),
-      [
-        [21, 1698, 1719, 5923, 1738, 4166],
-        [21, 1698, 1719, 5923, 1738],
-        [21, 1698, 1719, 5923],
-      ]
+      results.map(({ objectId }) => objectId),
+      ["len-5", "len-6", "len-4", "from-similar"]
     );
+    assert.equal(
+      results[1].coverImageUrl,
+      "https://shared.steamstatic.com/store_item_assets/steam/apps/len-6/library_600x900_2x.jpg"
+    );
+    assert.deepEqual(results[1].sharedTagIds, ordered.slice(0, 6));
+    assert.deepEqual(results[1].downloadSources, ["Source"]);
   });
 
-  it("requests only the tiers the game has enough tags for", async () => {
+  it("requests only the queries the game has enough tags for", async () => {
     const { api, calls } = createApi({
       tags: { tags: tags.slice(0, 5) },
-      search: () =>
-        Array.from({ length: 10 }, (_, index) => searchEdge(`${index}`)),
+      search: () => [searchEdge("a")],
     });
 
     await fetchSimilarGames(steamQuery, api);
 
     assert.deepEqual(
-      calls
-        .filter((call) => call.method === "post")
-        .map(
-          (call) => (call.options as { data: { tags: number[] } }).data.tags
-        ),
+      searchCalls(calls).map(({ tags, sortBy }) => [tags.length, sortBy]),
       [
-        [21, 1698, 1719, 5923, 1738],
-        [21, 1698, 1719, 5923],
+        [5, "popularity"],
+        [5, "reviewScore"],
+        [4, "popularity"],
       ]
     );
   });
 
-  it("fills remaining slots from the similar endpoint", async () => {
+  it("drops non-numeric tag ids before tiering", async () => {
     const { api, calls } = createApi({
-      tags: { tags },
+      tags: { tags: ["x", "1698", "1719", "5923", "1738", "1.5"] },
       search: () => [searchEdge("a")],
-      similar: [
-        game("a"),
-        ...Array.from({ length: 9 }, (_, index) => game(`similar-${index}`)),
-      ],
     });
 
-    const results = await fetchSimilarGames(steamQuery, api, ["source-a"]);
+    await fetchSimilarGames(steamQuery, api);
 
     assert.deepEqual(
-      results.map(({ objectId }) => objectId),
-      ["a", ...Array.from({ length: 9 }, (_, index) => `similar-${index}`)]
+      searchCalls(calls).map(({ tags }) => tags),
+      [[1698, 1719, 5923, 1738]]
     );
-    assert.deepEqual(calls.at(-1), {
-      method: "get",
-      path: "/catalogue/steam/current/similar",
-      options: {
-        params: { take: 12, downloadSourceIds: ["source-a"] },
-        needsAuth: false,
-      },
-    });
   });
 
   it("uses the similar endpoint alone when the game has fewer than four tags", async () => {
@@ -337,7 +318,7 @@ describe("fetchSimilarGames", () => {
     assert.equal(calls.filter((call) => call.method === "post").length, 0);
   });
 
-  it("uses the similar endpoint alone when a tag search fails", async () => {
+  it("uses the similar endpoint alone when every tag search fails", async () => {
     const { api } = createApi({
       tags: { tags },
       search: () => {
@@ -351,6 +332,38 @@ describe("fetchSimilarGames", () => {
     assert.deepEqual(
       results.map(({ objectId }) => objectId),
       ["fallback"]
+    );
+  });
+
+  it("keeps the other searches when one tag search fails", async () => {
+    const { api } = createApi({
+      tags: { tags },
+      search: (requested) => {
+        if (requested.length === 6) throw new Error("search down");
+        return [searchEdge(`len-${requested.length}`)];
+      },
+    });
+
+    const results = await fetchSimilarGames(steamQuery, api);
+
+    assert.deepEqual(
+      results.map(({ objectId }) => objectId),
+      ["len-5", "len-4"]
+    );
+  });
+
+  it("keeps tag matches when the similar endpoint fails", async () => {
+    const { api } = createApi({
+      tags: { tags },
+      search: () => [searchEdge("tagged")],
+      similar: () => Promise.reject(new Error("similar down")),
+    });
+
+    const results = await fetchSimilarGames(steamQuery, api);
+
+    assert.deepEqual(
+      results.map(({ objectId }) => objectId),
+      ["tagged"]
     );
   });
 
