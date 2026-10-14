@@ -13,7 +13,10 @@ const SUPPORTED_STEAM_METADATA_LANGUAGES = new Set([
   "fr",
 ]);
 
-async function getLocalizedSteamMetadata<T>(endpoint: string, locale: string) {
+export async function getLocalizedSteamMetadata<T>(
+  endpoint: string,
+  locale: string
+) {
   const language = locale.split("-")[0] || "en";
   const requestLanguage = SUPPORTED_STEAM_METADATA_LANGUAGES.has(language)
     ? language

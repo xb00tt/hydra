@@ -1,15 +1,58 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { orderBy } from "lodash-es";
+import { useTranslation } from "react-i18next";
 
 import { logger } from "@renderer/logger";
 import { levelDBService } from "@renderer/services/leveldb.service";
+import { setTags } from "@renderer/features";
 import type { DownloadSource } from "@types";
+import { useAppDispatch, useAppSelector } from "./redux";
+import { useLibrary } from "./use-library";
+import { getLocalizedSteamMetadata } from "./use-catalogue";
 import {
+  buildSimilarGameViews,
   fetchSimilarGames,
+  getCachedSimilarGames,
+  similarGameKey,
   type SimilarGame,
   type SimilarGamesApi,
   type SimilarGamesQuery,
 } from "./similar-games";
+
+const useSteamTagNames = (enabled: boolean) => {
+  const dispatch = useAppDispatch();
+  const { i18n } = useTranslation();
+  const language = i18n.language.split("-")[0] || "en";
+  const tagNames = useAppSelector(
+    (state) => state.catalogueSearch.steamUserTags[language]
+  );
+
+  useEffect(() => {
+    if (!enabled || tagNames) return;
+
+    let cancelled = false;
+    getLocalizedSteamMetadata<Record<string, number>>(
+      "/catalogue/steam/tags",
+      i18n.language
+    )
+      .then((tags) => {
+        if (!cancelled) dispatch(setTags(tags));
+      })
+      .catch((error) => logger.error("Failed to fetch steam tags", error));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, enabled, i18n.language, tagNames]);
+
+  return useMemo(
+    () =>
+      new Map(
+        Object.entries(tagNames ?? {}).map(([name, id]) => [id, name] as const)
+      ),
+    [tagNames]
+  );
+};
 
 export const useSimilarGames = (query: SimilarGamesQuery) => {
   const [games, setGames] = useState<SimilarGame[]>([]);
@@ -20,18 +63,21 @@ export const useSimilarGames = (query: SimilarGamesQuery) => {
   const queryKey = `${shop}:${objectId}`;
   const isEligible =
     Boolean(objectId) && (shop === "steam" || shop === "launchbox");
+  const cached = getCachedSimilarGames({ objectId, shop });
 
   useEffect(() => {
     const requestId = ++requestIdRef.current;
     const stableQuery: SimilarGamesQuery = { objectId, shop };
+    const cachedGames = getCachedSimilarGames(stableQuery);
 
-    setGames([]);
     setResultQueryKey(queryKey);
-    if (!isEligible) {
+    if (!isEligible || cachedGames) {
+      setGames(cachedGames ?? []);
       setIsLoading(false);
       return;
     }
 
+    setGames([]);
     setIsLoading(true);
 
     const api: SimilarGamesApi = {
@@ -75,11 +121,23 @@ export const useSimilarGames = (query: SimilarGamesQuery) => {
     };
   }, [isEligible, objectId, queryKey, shop]);
 
+  const tagNameById = useSteamTagNames(isEligible && shop === "steam");
+  const { library } = useLibrary();
+  const ownedKeys = useMemo(
+    () => new Set(library.map((game) => similarGameKey(game))),
+    [library]
+  );
+
   const hasCurrentResults = resultQueryKey === queryKey;
+  const currentGames = hasCurrentResults ? games : (cached ?? []);
+  const views = useMemo(
+    () => buildSimilarGameViews(currentGames, ownedKeys, tagNameById),
+    [currentGames, ownedKeys, tagNameById]
+  );
 
   return {
-    games: hasCurrentResults ? games : [],
-    isLoading: isEligible && (!hasCurrentResults || isLoading),
+    games: views,
+    isLoading: isEligible && !cached && (!hasCurrentResults || isLoading),
     isEligible,
   };
 };
