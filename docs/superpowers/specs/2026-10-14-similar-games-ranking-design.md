@@ -93,8 +93,8 @@ parallel. Each uses the existing `/catalogue/search` payload shape with
 | --- | --- | --- | --- |
 | tier6 | first 6 | popularity desc | tight match |
 | tier5 | first 5 | popularity desc | medium match |
-| tier4 | first 4 | popularity desc | loose match |
 | rated5 | first 5 | reviewScore desc | diversity, surfaces well-reviewed small games |
+| tier4 | first 4 | popularity desc | loose match |
 
 A query whose tier size exceeds the tag count is skipped, as today.
 
@@ -111,8 +111,8 @@ Each candidate from the tag queries is normalized with the existing
 - `sharedTagIds`: the tag list of the narrowest query (fewest tags) that
   returned it. tier6 beats tier5 and rated5, which beat tier4. Since tags are
   specific-first, the head of this list is the most specific overlap.
-- `firstSeen`: insertion index in the processing order tier6, tier5, tier4,
-  rated5.
+- `firstSeen`: insertion index in the processing order tier6, tier5, rated5,
+  tier4 (narrowest first, stable).
 - `hasDownloadSources`: `downloadSources.length > 0`.
 
 Candidates from `/similar` that are not already present are appended with
