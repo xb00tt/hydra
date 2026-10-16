@@ -4,6 +4,7 @@ import type {
   AppUpdaterEvent,
   GameShop,
   Steam250Game,
+  SteamRecommendation,
   DownloadProgress,
   SeedingStatus,
   UserPreferences,
@@ -320,6 +321,9 @@ declare global {
     getRandomGame: () => Promise<Steam250Game>;
     getGameStats: (objectId: string, shop: GameShop) => Promise<GameStats>;
     getSteamAppTags: (objectId: string) => Promise<number[]>;
+    getSteamRecommendations: (
+      objectId: string
+    ) => Promise<SteamRecommendation[]>;
     getGameAssets: (
       objectId: string,
       shop: GameShop,

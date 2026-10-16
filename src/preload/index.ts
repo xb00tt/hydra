@@ -483,6 +483,8 @@ contextBridge.exposeInMainWorld("electron", {
     ipcRenderer.invoke("getGameStats", objectId, shop),
   getSteamAppTags: (objectId: string) =>
     ipcRenderer.invoke("getSteamAppTags", objectId),
+  getSteamRecommendations: (objectId: string) =>
+    ipcRenderer.invoke("getSteamRecommendations", objectId),
   getGameAssets: (
     objectId: string,
     shop: GameShop,

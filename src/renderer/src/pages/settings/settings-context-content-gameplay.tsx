@@ -41,6 +41,9 @@ const buildForm = (preferences: UserPreferences | null) => ({
     preferences?.hideLibraryAchievementProgress ?? false,
   autoplayAnimatedArtwork: preferences?.autoplayAnimatedArtwork ?? false,
   persistFiltersAndSorting: preferences?.persistFiltersAndSorting ?? false,
+  showSimilarGamesSteam: preferences?.showSimilarGamesSteam ?? true,
+  showSimilarGamesRevamped: preferences?.showSimilarGamesRevamped ?? true,
+  showSimilarGamesOriginal: preferences?.showSimilarGamesOriginal ?? true,
 });
 
 export function SettingsContextContentGameplay() {
@@ -194,6 +197,34 @@ export function SettingsContextContentGameplay() {
           onChange={() =>
             handleChange({
               persistFiltersAndSorting: !form.persistFiltersAndSorting,
+            })
+          }
+        />
+
+        <CheckboxField
+          label={t("show_similar_games_steam")}
+          checked={form.showSimilarGamesSteam}
+          onChange={() =>
+            handleChange({ showSimilarGamesSteam: !form.showSimilarGamesSteam })
+          }
+        />
+
+        <CheckboxField
+          label={t("show_similar_games_revamped")}
+          checked={form.showSimilarGamesRevamped}
+          onChange={() =>
+            handleChange({
+              showSimilarGamesRevamped: !form.showSimilarGamesRevamped,
+            })
+          }
+        />
+
+        <CheckboxField
+          label={t("show_similar_games_original")}
+          checked={form.showSimilarGamesOriginal}
+          onChange={() =>
+            handleChange({
+              showSimilarGamesOriginal: !form.showSimilarGamesOriginal,
             })
           }
         />

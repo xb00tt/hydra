@@ -207,6 +207,9 @@
     "platforms": "Платформи"
   },
   "game_details": {
+    "similar_games_steam": "Подобни игри (Steam)",
+    "similar_games_revamped": "Подобни игри (Обновени)",
+    "similar_games_original": "Подобни игри (Оригинални)",
     "bios_not_configured_toast": "BIOS е необходим. Конфигурирай своя PS1/PS2 BIOS в Настройки → Емулация преди стартиране.",
     "open_download_options": "Отвори опциите за изтегляне",
     "download_options_zero": "Няма опция за изтегляне",
@@ -1019,6 +1022,9 @@
     "notification_preview": "Преглед на известие за постижение",
     "enable_friend_start_game_notifications": "Когато приятел започне да играе игра",
     "autoplay_trailers_on_game_page": "Автоматично стартиране на трейлъри на страницата на играта",
+    "show_similar_games_steam": "Показвай „Подобни игри (Steam)“ на страниците на игрите",
+    "show_similar_games_revamped": "Показвай „Подобни игри (Обновени)“ на страниците на игрите",
+    "show_similar_games_original": "Показвай „Подобни игри (Оригинални)“ на страниците на игрите",
     "hide_to_tray_on_game_start": "Скрий Hydra в системната област при стартиране на игра",
     "downloads": "Изтегляния",
     "create_shortcuts_on_download": "Създай преки пътища на работния плот и в старт менюто, когато играта завърши изтеглянето",

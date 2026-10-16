@@ -22,6 +22,7 @@ import { GameLogo } from "./game-logo";
 import { CloudSaveWidget } from "./cloud-save-v2";
 import { getCloudSaveVisibility } from "./cloud-save-visibility";
 import { SimilarGames } from "./similar-games/similar-games";
+import { SIMILAR_GAMES_SOURCES } from "@renderer/hooks/similar-games";
 
 import { AuthPage, getDisplayedPlayTimeInMilliseconds } from "@shared";
 import { cloudSyncContext, gameDetailsContext } from "@renderer/context";
@@ -228,6 +229,14 @@ export function GameDetailsContent() {
   );
   const hideClassicsBookmark = userPreferences?.hideClassicsBookmark ?? false;
   const classicsUseHeroLayout = userPreferences?.classicsUseHeroLayout ?? false;
+  const similarGamesSources = SIMILAR_GAMES_SOURCES.filter(
+    (source) =>
+      ({
+        steam: userPreferences?.showSimilarGamesSteam,
+        revamped: userPreferences?.showSimilarGamesRevamped,
+        original: userPreferences?.showSimilarGamesOriginal,
+      })[source] ?? true
+  );
 
   const isCustomGame = game?.shop === "custom";
   const isLaunchboxGame = shop === "launchbox";
@@ -508,9 +517,16 @@ export function GameDetailsContent() {
               </button>
             )}
 
-            {shop && objectId && (
-              <SimilarGames objectId={objectId} shop={shop} />
-            )}
+            {shop &&
+              objectId &&
+              similarGamesSources.map((source) => (
+                <SimilarGames
+                  key={source}
+                  objectId={objectId}
+                  shop={shop}
+                  source={source}
+                />
+              ))}
 
             {shop !== "custom" && shop && objectId && (
               <div ref={reviewsRef}>

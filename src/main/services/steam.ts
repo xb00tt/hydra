@@ -13,6 +13,11 @@ import {
   parseSteamAppDetailsResponse,
   type SteamAppDetailsResponse,
 } from "./steam-app-details";
+import {
+  parseMoreLikeAppIds,
+  toSteamRecommendations,
+  type SteamStoreItem,
+} from "./steam-recommendations";
 
 export const getSteamLocation = async () => {
   if (process.platform === "linux") {
@@ -167,27 +172,58 @@ export const getSteamAppDetails = async (
     });
 };
 
-// Store user tag ids in vote order. Tag ids are language-independent.
-export const getSteamAppTags = async (objectId: string) => {
-  const inputJson = JSON.stringify({
-    ids: [{ appid: Number(objectId) }],
-    context: { language: "english", country_code: "US" },
-    data_request: { include_tag_count: 20 },
-  });
-
-  return axios
-    .get<{ response?: { store_items?: { tagids?: unknown }[] } }>(
+const getSteamStoreItems = (
+  appIds: string[],
+  dataRequest: Record<string, unknown>
+) =>
+  axios
+    .get<{ response?: { store_items?: SteamStoreItem[] } }>(
       "https://api.steampowered.com/IStoreBrowseService/GetItems/v1",
-      { params: { input_json: inputJson } }
+      {
+        params: {
+          input_json: JSON.stringify({
+            ids: appIds.map((appId) => ({ appid: Number(appId) })),
+            context: { language: "english", country_code: "US" },
+            data_request: dataRequest,
+          }),
+        },
+      }
     )
-    .then((response) => {
-      const tagIds = response.data.response?.store_items?.[0]?.tagids;
-      return Array.isArray(tagIds) ? tagIds.filter(Number.isInteger) : [];
-    })
+    .then((response) => response.data.response?.store_items ?? []);
+
+// Store user tag ids in vote order. Tag ids are language-independent.
+export const getSteamAppTags = async (objectId: string) =>
+  getSteamStoreItems([objectId], { include_tag_count: 20 })
+    .then(([item]) => (item?.tagids ?? []).filter(Number.isInteger))
     .catch((err) => {
       logger.error("Error on getSteamAppTags", { message: err?.message });
       return [] as number[];
     });
+
+// Steam's own "More like this" list for a game, in Steam's order.
+export const getSteamRecommendations = async (objectId: string) => {
+  if (!/^\d+$/.test(objectId)) return [];
+
+  try {
+    const { data: html } = await axios.get<string>(
+      `https://store.steampowered.com/recommended/morelike/app/${objectId}/`,
+      { responseType: "text" }
+    );
+    const appIds = parseMoreLikeAppIds(html, objectId);
+    if (appIds.length === 0) return [];
+
+    const items = await getSteamStoreItems(appIds, {
+      include_tag_count: 20,
+      include_assets: true,
+    });
+
+    return toSteamRecommendations(appIds, items);
+  } catch (err) {
+    logger.error("Error on getSteamRecommendations", {
+      message: (err as Error)?.message,
+    });
+    return [];
+  }
 };
 
 export const getSteamUsersIds = async () => {

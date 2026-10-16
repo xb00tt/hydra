@@ -211,6 +211,9 @@ export interface UserPreferences {
   hideLibraryAchievementProgress?: boolean;
   autoplayAnimatedArtwork?: boolean;
   persistFiltersAndSorting?: boolean;
+  showSimilarGamesSteam?: boolean;
+  showSimilarGamesRevamped?: boolean;
+  showSimilarGamesOriginal?: boolean;
 }
 
 export interface NetworkInterface {

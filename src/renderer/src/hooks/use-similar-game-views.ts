@@ -51,7 +51,9 @@ const useSteamTagNames = (enabled: boolean) => {
 // Renderer-only: needs the redux Provider for the library and tag names.
 export const useSimilarGameViews = (query: SimilarGamesQuery) => {
   const { games, isLoading, isEligible } = useSimilarGames(query);
-  const tagNameById = useSteamTagNames(isEligible && query.shop === "steam");
+  const tagNameById = useSteamTagNames(
+    isEligible && query.source !== "original"
+  );
   const { library } = useLibrary();
   const ownedKeys = useMemo(
     () => new Set(library.map((game) => similarGameKey(game))),

@@ -88,3 +88,12 @@ export interface SteamShortcut {
 export interface CreateSteamShortcutOptions {
   openVr?: boolean;
 }
+
+// One game from Steam's own "More like this" list, with its store tags.
+export interface SteamRecommendation {
+  objectId: string;
+  title: string;
+  tagIds: number[];
+  coverImageUrl: string | null;
+  libraryImageUrl: string | null;
+}
