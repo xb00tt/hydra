@@ -319,6 +319,7 @@ declare global {
     ) => Promise<ShopDetailsWithAssets | null>;
     getRandomGame: () => Promise<Steam250Game>;
     getGameStats: (objectId: string, shop: GameShop) => Promise<GameStats>;
+    getSteamAppTags: (objectId: string) => Promise<number[]>;
     getGameAssets: (
       objectId: string,
       shop: GameShop,

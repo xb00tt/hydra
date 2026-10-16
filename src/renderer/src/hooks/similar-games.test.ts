@@ -144,7 +144,7 @@ const searchEdge = (objectId: string) => ({
 });
 
 interface ApiCall {
-  method: "get" | "post";
+  method: "get" | "post" | "steamTags";
   path: string;
   options: unknown;
 }
@@ -153,6 +153,7 @@ const createApi = (handlers: {
   tags?: unknown | (() => Promise<unknown>);
   search?: (tags: number[], sortBy: string) => unknown;
   similar?: unknown | (() => Promise<unknown>);
+  steamTags?: number[];
 }) => {
   const calls: ApiCall[] = [];
   const api: SimilarGamesApi = {
@@ -175,6 +176,10 @@ const createApi = (handlers: {
       };
       if (!handlers.search) throw new Error("unexpected search");
       return { edges: handlers.search(tags, sortBy), count: 0 };
+    },
+    getSteamTags: async (objectId) => {
+      calls.push({ method: "steamTags", path: objectId, options: null });
+      return handlers.steamTags ?? [];
     },
   };
 
@@ -203,7 +208,7 @@ describe("fetchSimilarGames", () => {
 
   beforeEach(() => clearSimilarGamesCache());
 
-  it("runs four tag searches and the similar endpoint in parallel", async () => {
+  it("runs six tag searches and the similar endpoint in parallel", async () => {
     const { api, calls } = createApi({
       tags: { tags },
       search: (requested) => [searchEdge(`len-${requested.length}`)],
@@ -217,6 +222,8 @@ describe("fetchSimilarGames", () => {
       { tags: ordered.slice(0, 5), sortBy: "popularity", take: 15 },
       { tags: ordered.slice(0, 5), sortBy: "reviewScore", take: 15 },
       { tags: ordered.slice(0, 4), sortBy: "popularity", take: 15 },
+      { tags: ordered.slice(0, 3), sortBy: "popularity", take: 15 },
+      { tags: ordered.slice(0, 2), sortBy: "popularity", take: 15 },
     ]);
     assert.deepEqual(paths(calls).slice(0, 2), [
       "/games/steam/current",
@@ -247,7 +254,7 @@ describe("fetchSimilarGames", () => {
     // len-5 was returned by two queries, so it outranks the single-hit games.
     assert.deepEqual(
       results.map(({ objectId }) => objectId),
-      ["len-5", "len-6", "len-4", "from-similar"]
+      ["len-5", "len-6", "len-4", "len-3", "len-2", "from-similar"]
     );
     assert.equal(
       results[1].coverImageUrl,
@@ -271,6 +278,8 @@ describe("fetchSimilarGames", () => {
         [5, "popularity"],
         [5, "reviewScore"],
         [4, "popularity"],
+        [3, "popularity"],
+        [2, "popularity"],
       ]
     );
   });
@@ -285,13 +294,17 @@ describe("fetchSimilarGames", () => {
 
     assert.deepEqual(
       searchCalls(calls).map(({ tags }) => tags),
-      [[1698, 1719, 5923, 1738]]
+      [
+        [1698, 1719, 5923, 1738],
+        [1698, 1719, 5923],
+        [1698, 1719],
+      ]
     );
   });
 
-  it("uses the similar endpoint alone when the game has fewer than four tags", async () => {
+  it("uses the similar endpoint alone when the game has fewer than two tags", async () => {
     const { api, calls } = createApi({
-      tags: { tags: ["21", "1698", "1719"] },
+      tags: { tags: ["1698"] },
       similar: [game("fallback")],
     });
 
@@ -305,6 +318,41 @@ describe("fetchSimilarGames", () => {
       "/games/steam/current",
       "/catalogue/steam/current/similar",
     ]);
+  });
+
+  it("falls back to Steam store tags when the catalogue has none", async () => {
+    const { api, calls } = createApi({
+      tags: { tags: [] },
+      steamTags: [21, 1698, 1719],
+      search: () => [searchEdge("a")],
+    });
+
+    await fetchSimilarGames(steamQuery, api);
+
+    assert.deepEqual(
+      calls
+        .filter((call) => call.method === "steamTags")
+        .map((call) => call.path),
+      ["current"]
+    );
+    assert.deepEqual(
+      searchCalls(calls).map(({ tags }) => tags),
+      [
+        [1698, 1719, 21],
+        [1698, 1719],
+      ]
+    );
+  });
+
+  it("skips Steam store tags when the catalogue has its own", async () => {
+    const { api, calls } = createApi({
+      tags: { tags },
+      search: () => [searchEdge("a")],
+    });
+
+    await fetchSimilarGames(steamQuery, api);
+
+    assert.equal(calls.filter((call) => call.method === "steamTags").length, 0);
   });
 
   it("uses the similar endpoint alone when the tag lookup fails", async () => {
@@ -352,7 +400,7 @@ describe("fetchSimilarGames", () => {
 
     assert.deepEqual(
       results.map(({ objectId }) => objectId),
-      ["len-5", "len-4"]
+      ["len-5", "len-4", "len-3", "len-2"]
     );
   });
 
@@ -458,6 +506,14 @@ describe("orderTagsSpecificFirst", () => {
     assert.deepEqual(
       orderTagsSpecificFirst([122, 4747, 1695, 4182, 1684]),
       [4747, 1695, 1684, 122, 4182]
+    );
+  });
+
+  it("drops tags the catalogue search never matches", () => {
+    // 1716 Roguelike and 3959 Roguelite return no catalogue results.
+    assert.deepEqual(
+      orderTagsSpecificFirst([1716, 4975, 3959, 492, 5851]),
+      [4975, 5851, 492]
     );
   });
 

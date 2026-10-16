@@ -40,11 +40,22 @@ export const GENERIC_STEAM_TAG_IDS: ReadonlySet<number> = new Set([
   12095, // Sexual Content
 ]);
 
+// Tags /catalogue/search returns nothing for, even alone (checked 2026-10-16).
+// One of them in an AND query empties it.
+const UNSEARCHABLE_STEAM_TAG_IDS: ReadonlySet<number> = new Set([
+  1716, // Roguelike
+  3959, // Roguelite
+]);
+
 // Specific tags first, then generic ones; vote order kept inside each group.
-export const orderTagsSpecificFirst = (tags: number[]) => [
-  ...tags.filter((tag) => !GENERIC_STEAM_TAG_IDS.has(tag)),
-  ...tags.filter((tag) => GENERIC_STEAM_TAG_IDS.has(tag)),
-];
+export const orderTagsSpecificFirst = (tags: number[]) => {
+  const searchable = tags.filter((tag) => !UNSEARCHABLE_STEAM_TAG_IDS.has(tag));
+
+  return [
+    ...searchable.filter((tag) => !GENERIC_STEAM_TAG_IDS.has(tag)),
+    ...searchable.filter((tag) => GENERIC_STEAM_TAG_IDS.has(tag)),
+  ];
+};
 
 const SEARCH_TAKE = 15; // /catalogue/search rejects take below 5
 
@@ -61,6 +72,8 @@ export const SIMILAR_GAMES_TAG_QUERIES: readonly SimilarGamesTagQuery[] = [
   { size: 5, sortBy: "popularity" },
   { size: 5, sortBy: "reviewScore" },
   { size: 4, sortBy: "popularity" },
+  { size: 3, sortBy: "popularity" },
+  { size: 2, sortBy: "popularity" },
 ];
 
 const CACHE_LIMIT = 50;
@@ -140,6 +153,8 @@ export type SimilarGamesPost = (
 export interface SimilarGamesApi {
   get: SimilarGamesGet;
   post: SimilarGamesPost;
+  // Steam store tag ids in vote order, for games the catalogue has no tags for.
+  getSteamTags: (objectId: string) => Promise<number[]>;
 }
 
 const isSupportedShop = (
@@ -359,7 +374,12 @@ const fetchTagMatches = async (
 ): Promise<TagQueryResult[]> => {
   let tags: number[];
   try {
-    tags = orderTagsSpecificFirst(await fetchGameTags(query, api.get));
+    const catalogueTags = await fetchGameTags(query, api.get);
+    tags = orderTagsSpecificFirst(
+      catalogueTags.length > 0
+        ? catalogueTags
+        : await api.getSteamTags(query.objectId)
+    );
   } catch {
     return [];
   }

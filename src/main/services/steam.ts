@@ -167,6 +167,29 @@ export const getSteamAppDetails = async (
     });
 };
 
+// Store user tag ids in vote order. Tag ids are language-independent.
+export const getSteamAppTags = async (objectId: string) => {
+  const inputJson = JSON.stringify({
+    ids: [{ appid: Number(objectId) }],
+    context: { language: "english", country_code: "US" },
+    data_request: { include_tag_count: 20 },
+  });
+
+  return axios
+    .get<{ response?: { store_items?: { tagids?: unknown }[] } }>(
+      "https://api.steampowered.com/IStoreBrowseService/GetItems/v1",
+      { params: { input_json: inputJson } }
+    )
+    .then((response) => {
+      const tagIds = response.data.response?.store_items?.[0]?.tagids;
+      return Array.isArray(tagIds) ? tagIds.filter(Number.isInteger) : [];
+    })
+    .catch((err) => {
+      logger.error("Error on getSteamAppTags", { message: err?.message });
+      return [] as number[];
+    });
+};
+
 export const getSteamUsersIds = async () => {
   const steamLocation = await getSteamLocation().catch(() => null);
 

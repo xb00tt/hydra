@@ -46,6 +46,8 @@ export const useSimilarGames = (query: SimilarGamesQuery) => {
         globalThis.window.electron.hydraApi.get<unknown>(path, options),
       post: (path, options) =>
         globalThis.window.electron.hydraApi.post<unknown>(path, options),
+      getSteamTags: (objectId) =>
+        globalThis.window.electron.getSteamAppTags(objectId),
     };
 
     const loadSimilarGames = async () => {
